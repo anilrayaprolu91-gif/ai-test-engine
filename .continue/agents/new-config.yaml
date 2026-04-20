@@ -1,0 +1,28 @@
+# This is an example configuration file
+# To learn more, see the full config.yaml reference: https://docs.continue.dev/reference
+
+name: Example Config
+version: 1.0.0
+schema: v1
+
+# Define which models can be used
+# https://docs.continue.dev/customization/models
+
+models:
+  - name: OpenRouter DeepSeek Coder
+    provider: openrouter
+    model: deepseek/deepseek-coder
+    apiBase: https://openrouter.ai/api/v1
+    apiKey: ${OPENROUTER_API_KEY}
+    contextLength: 128000
+  - name: Qwen3 Coder (Free tier option)
+    provider: openrouter
+    model: qwen/qwen3-coder:free
+    apiKey: ${OPENROUTER_API_KEY}
+
+
+# MCP Servers that Continue can access
+# https://docs.continue.dev/customization/mcp-tools
+mcpServers:
+  - uses: anthropic/memory-mcp
+
