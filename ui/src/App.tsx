@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Octokit } from '@octokit/rest';
 
 const octokit = new Octokit({
@@ -35,7 +35,13 @@ export default function App() {
       });
       setStatus('Spec pushed to GitHub!');
     } catch (err) {
-      setStatus('Error: ' + (err.message || err.toString()));
+      let message = '';
+      if (err instanceof Error) {
+        message = err.message;
+      } else {
+        message = String(err);
+      }
+      setStatus('Error: ' + message);
     }
   };
 
