@@ -15,7 +15,7 @@ export default function App() {
     try {
       // Example: create a new file in a repo (customize as needed)
       const owner = 'anilrayaprolu91-gif';
-      const repo = 'ai-playwright-test-engine';
+      const repo = 'ai-test-engine';
       const path = `specs/${Date.now()}-spec.md`;
       const content = btoa(`# Test Goal\n${testGoal}\n\n# Target URL\n${targetUrl}`);
       await octokit.repos.createOrUpdateFileContents({
