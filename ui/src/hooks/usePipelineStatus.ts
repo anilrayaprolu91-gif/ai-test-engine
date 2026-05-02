@@ -66,9 +66,8 @@ export function usePipelineStatus(
       name: String(w.name ?? ''),
       path: String(w.path ?? ''),
       state: String(w.state ?? ''),
-      // A workflow supports manual dispatch if its YAML has workflow_dispatch trigger
-      // We detect this by checking the path name (rough) or state
-      hasDispatch: String(w.path ?? '').includes('playwright') || String(w.path ?? '').includes('ai-pipeline'),
+      // Dashboard trigger is intentionally limited to BRD-oriented Playwright generation flow.
+      hasDispatch: String(w.path ?? '').includes('generate-tests'),
     }));
   }, [getOctokit, owner, repo]);
 
