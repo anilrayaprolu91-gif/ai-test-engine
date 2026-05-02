@@ -10,6 +10,10 @@ async function fillNewRequirementForm(page: import('@playwright/test').Page, val
   await page.getByPlaceholder('Describe the requirement, expected behaviour, and business intent.').fill(values.testGoal);
 }
 
+async function navigateToGenerateTab(page: import('@playwright/test').Page) {
+  await page.getByRole('button', { name: 'Generate' }).click();
+}
+
 function getMainTable(page: import('@playwright/test').Page) {
   return page.locator('section', {
     has: page.getByRole('heading', { name: 'Test Cases' }),
@@ -88,6 +92,7 @@ test.describe('Dashboard smoke checks', () => {
 
   test('local mode plan-only generation downloads file and shows command @smoke', async ({ page }) => {
     await page.goto('/');
+    await navigateToGenerateTab(page);
 
     await expect(page.getByText('Local mode: files are downloaded.')).toBeVisible();
     await fillNewRequirementForm(page, {
@@ -107,6 +112,7 @@ test.describe('Dashboard smoke checks', () => {
 
   test('local mode plan-and-tests generation downloads spec and shows convert command @smoke', async ({ page }) => {
     await page.goto('/');
+    await navigateToGenerateTab(page);
 
     await fillNewRequirementForm(page, {
       brdId: 'BRD-12',
@@ -126,6 +132,7 @@ test.describe('Dashboard smoke checks', () => {
 
   test('local mode generate-tests-only flow validates selection and click status @smoke', async ({ page }) => {
     await page.goto('/');
+    await navigateToGenerateTab(page);
 
     const emptyState = page.getByText('All BRDs already have generated Playwright tests, or no BRDs are loaded yet.');
     const zeroSelectedButton = page.getByRole('button', { name: /Generate Tests \(0 selected\)/ });
