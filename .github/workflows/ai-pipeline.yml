@@ -37,6 +37,9 @@ jobs:
       - name: Install UI dependencies
         run: npm ci --prefix ui
 
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps
+
       - name: Run Playwright tests
         id: playwright
         run: PLAYWRIGHT_JSON_OUTPUT_NAME=output/playwright-report.json npx playwright test --reporter=line,json
