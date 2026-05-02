@@ -243,6 +243,12 @@ Output TypeScript code ONLY — no markdown, no explanations, no code fences.
 - await expect(locator).toHaveValue('...') — form field value
 - await expect(locator).toBeChecked()      — checkbox/radio
 
+━━━ STABILITY RULES (IMPORTANT) ━━━
+- Prefer resilient semantic locators (role, label, stable visible text) over fragile alt-text assertions.
+- Do NOT use page.getByAltText(...) for generic homepage sanity unless the requirement explicitly validates image/alt content.
+- For "page loads correctly" checks, prioritize: toHaveURL, toHaveTitle, and at least one stable visible UI anchor.
+- If text may vary by punctuation/casing, prefer case-insensitive regex over exact full-string equality.
+
 ━━━ HEALER INTEGRATION (KEEP AS-IS) ━━━
 - Import: import { analyzeLocator } from '../../lib/healer';
 - Before interacting with each critical locator: const result = await analyzeLocator({ page, selector });
