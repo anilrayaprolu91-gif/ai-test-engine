@@ -202,7 +202,7 @@ export function PipelineStatusView({
         {/* ── Trigger buttons ──────────────────────────────────────── */}
         {dispatchableWorkflows.length > 0 && (
           <div className="mt-5 border-t border-slate-100 pt-4 dark:border-slate-700/50">
-            <p className="mb-3 text-sm font-medium text-slate-700 dark:text-slate-200">Trigger a pipeline run:</p>
+            <p className="mb-3 text-sm font-medium text-slate-700 dark:text-slate-200">Run BRD-associated Playwright generation:</p>
             <div className="flex flex-wrap gap-2">
               {dispatchableWorkflows.map(wf => (
                 <button
@@ -217,7 +217,7 @@ export function PipelineStatusView({
                   ) : (
                     <Play className="h-4 w-4" />
                   )}
-                  Run: {wf.name}
+                  Run BRD Playwright Flow
                 </button>
               ))}
             </div>
