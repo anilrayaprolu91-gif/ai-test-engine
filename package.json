@@ -1,10 +1,28 @@
 {
   "name": "ai-test-engine",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {},
-  "keywords": [],
+  "version": "1.1.0",
+  "description": "Living Specification and Playwright traceability utilities",
+  "main": "lib/specParser.js",
+  "scripts": {
+    "sync": "node scripts/sync-requirements.js",
+    "sync:requirements": "node scripts/sync-requirements.js",
+    "sync:status": "node scripts/generate-sync-status.js",
+    "sync:status:ci": "node scripts/generate-sync-status.js --failures=output/analyze-failures.json",
+    "generate:local": "node scripts/generate-local-tests.js --all",
+    "generate:from-plans": "node scripts/generate-local-tests.js --all --source=test-plans",
+    "plan:create": "node scripts/create-test-plan.js",
+    "heal:batch": "node scripts/batch-heal.js",
+    "test": "playwright test",
+    "test:report": "playwright show-report",
+    "test:smoke": "playwright test tests/dashboard.smoke.spec.ts --project=smoke-chromium --reporter=line",
+    "check:prepush": "npm run build --prefix ui && npm run test:smoke"
+  },
+  "keywords": [
+    "playwright",
+    "qa",
+    "living-specification",
+    "traceability"
+  ],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
@@ -14,6 +32,7 @@
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
-    "dotenv": "^17.4.2"
+    "dotenv": "^17.4.2",
+    "openai": "^6.35.0"
   }
 }
