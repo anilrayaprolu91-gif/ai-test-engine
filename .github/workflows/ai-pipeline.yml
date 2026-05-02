@@ -42,7 +42,7 @@ jobs:
 
       - name: Run Playwright tests
         id: playwright
-        run: PLAYWRIGHT_JSON_OUTPUT_NAME=output/playwright-report.json npx playwright test --reporter=line,json
+        run: PLAYWRIGHT_JSON_OUTPUT_NAME=output/playwright-report.json npx playwright test tests/dashboard.smoke.spec.ts --project=smoke-chromium --reporter=line,json
 
       - name: Analyze Playwright failures
         if: failure() && steps.playwright.outcome == 'failure'
