@@ -7,7 +7,9 @@ import { DashboardHeader } from './components/DashboardHeader';
 import { FailingBRDTable } from './components/FailingBRDTable';
 import { FiltersToolbar } from './components/FiltersToolbar';
 import { GenerateTestSpec } from './components/GenerateTestSpec';
+import { PipelineStatusView } from './components/PipelineStatusView';
 import { StatusCard } from './components/StatusCard';
+import { usePipelineStatus } from './hooks/usePipelineStatus';
 import { useSyncStatus } from './hooks/useSyncStatus';
 import { useTheme } from './hooks/useTheme';
 import type { BRDSortKey, SortDirection, TestSpecFormValues } from './types/dashboard';
@@ -59,6 +61,7 @@ if (specDeliveryMode === 'github') {
 
 export default function App() {
   const [envWarningDismissed, setEnvWarningDismissed] = useState(false);
+  const [activeTab, setActiveTab] = useState<'requirements' | 'pipeline' | 'generate'>('requirements');
   const savedPreferences = loadDashboardPreferences();
   const [formValues, setFormValues] = useState<TestSpecFormValues>({
     brdId: '',
@@ -82,6 +85,7 @@ export default function App() {
   const [currentPage, setCurrentPage] = useState(1);
   const { theme, toggleTheme } = useTheme();
   const { data, error, loading, refreshing, summary, refresh, lastRefreshAttemptedAt, lastSuccessfulRefreshAt, brdsMissingTests } = useSyncStatus();
+  const pipeline = usePipelineStatus(githubToken, githubOwner, githubRepo, activeTab === 'pipeline');
 
   const updateField = (field: keyof TestSpecFormValues, value: string) => {
     setFormValues(current => ({ ...current, [field]: value }));
@@ -431,82 +435,126 @@ export default function App() {
           </div>
         )}
 
-        <section className="grid gap-4 md:grid-cols-3">
-          <StatusCard
-            title="Total BRDs"
-            value={summary.total}
-            caption="Mapped business requirements tracked in the latest sync snapshot."
-            icon={Layers3}
-          />
-          <StatusCard
-            title="Failing BRDs"
-            value={summary.failing}
-            caption={summary.failing > 0 ? 'Immediate stakeholder attention required.' : 'No critical requirement failures detected.'}
-            icon={AlertTriangle}
-            tone={summary.failing > 0 ? 'danger' : 'success'}
-          />
-          <StatusCard
-            title="Passing BRDs"
-            value={summary.passing}
-            caption="Requirements currently validated by the latest build results."
-            icon={CheckCircle2}
-            tone="success"
-          />
-        </section>
+        {/* ── Tab navigation ──────────────────────────────────── */}
+        <div className="flex gap-1 rounded-2xl border border-slate-200/70 bg-white/70 p-1 backdrop-blur dark:border-slate-700/70 dark:bg-slate-900/50 w-fit">
+          {([
+            { id: 'requirements', label: 'Requirements' },
+            { id: 'pipeline', label: 'Pipeline' },
+            { id: 'generate', label: 'Generate' },
+          ] as const).map(tab => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              className={`rounded-xl px-5 py-2 text-sm font-medium transition ${
+                activeTab === tab.id
+                  ? 'bg-sky-500 text-white shadow'
+                  : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
 
-        <FiltersToolbar
-          searchTerm={searchTerm}
-          statusFilter={statusFilter}
-          totalVisible={sortedRows.length}
-          totalRows={data?.results.length || 0}
-          autoRefreshEnabled={autoRefreshEnabled}
-          pageSize={pageSize}
-          onSearchChange={setSearchTerm}
-          onStatusFilterChange={setStatusFilter}
-          onAutoRefreshChange={setAutoRefreshEnabled}
-          onPageSizeChange={setPageSize}
-          onExportCsv={handleExportCsv}
-        />
-
-        {loading ? (
-          <section className="rounded-[2rem] border border-slate-200/70 bg-white/85 p-10 text-center text-sm text-slate-500 shadow-[0_20px_90px_-55px_rgba(15,23,42,0.45)] backdrop-blur-xl dark:border-slate-700/70 dark:bg-slate-900/65 dark:text-slate-300">
-            Loading dashboard data...
-          </section>
-        ) : (
+        {/* ── Requirements tab ────────────────────────────────── */}
+        {activeTab === 'requirements' && (
           <>
-            <FailingBRDTable rows={sortedFailingRows} hasActiveFilters={searchTerm.trim().length > 0 || statusFilter !== 'all'} />
-            <BRDTable
-              rows={paginatedRows}
-              hasActiveFilters={searchTerm.trim().length > 0 || statusFilter !== 'all'}
-              sortKey={sortKey}
-              sortDirection={sortDirection}
-              currentPage={currentPage}
-              totalPages={totalPages}
-              totalRows={sortedRows.length}
+            <section className="grid gap-4 md:grid-cols-3">
+              <StatusCard
+                title="Total BRDs"
+                value={summary.total}
+                caption="Mapped business requirements tracked in the latest sync snapshot."
+                icon={Layers3}
+              />
+              <StatusCard
+                title="Failing BRDs"
+                value={summary.failing}
+                caption={summary.failing > 0 ? 'Immediate stakeholder attention required.' : 'No critical requirement failures detected.'}
+                icon={AlertTriangle}
+                tone={summary.failing > 0 ? 'danger' : 'success'}
+              />
+              <StatusCard
+                title="Passing BRDs"
+                value={summary.passing}
+                caption="Requirements currently validated by the latest build results."
+                icon={CheckCircle2}
+                tone="success"
+              />
+            </section>
+
+            <FiltersToolbar
+              searchTerm={searchTerm}
+              statusFilter={statusFilter}
+              totalVisible={sortedRows.length}
+              totalRows={data?.results.length || 0}
+              autoRefreshEnabled={autoRefreshEnabled}
               pageSize={pageSize}
-              onSort={handleSort}
-              onPageChange={handlePageChange}
+              onSearchChange={setSearchTerm}
+              onStatusFilterChange={setStatusFilter}
+              onAutoRefreshChange={setAutoRefreshEnabled}
+              onPageSizeChange={setPageSize}
+              onExportCsv={handleExportCsv}
             />
+
+            {loading ? (
+              <section className="rounded-[2rem] border border-slate-200/70 bg-white/85 p-10 text-center text-sm text-slate-500 shadow-[0_20px_90px_-55px_rgba(15,23,42,0.45)] backdrop-blur-xl dark:border-slate-700/70 dark:bg-slate-900/65 dark:text-slate-300">
+                Loading dashboard data...
+              </section>
+            ) : (
+              <>
+                <FailingBRDTable rows={sortedFailingRows} hasActiveFilters={searchTerm.trim().length > 0 || statusFilter !== 'all'} />
+                <BRDTable
+                  rows={paginatedRows}
+                  hasActiveFilters={searchTerm.trim().length > 0 || statusFilter !== 'all'}
+                  sortKey={sortKey}
+                  sortDirection={sortDirection}
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  totalRows={sortedRows.length}
+                  pageSize={pageSize}
+                  onSort={handleSort}
+                  onPageChange={handlePageChange}
+                />
+              </>
+            )}
           </>
         )}
 
-        <GenerateTestSpec
-          values={formValues}
-          planStatus={planStatus}
-          planAndTestsStatus={planAndTestsStatus}
-          generateStatus={generateStatus}
-          submittingPlan={submittingPlan}
-          submittingPlanAndTests={submittingPlanAndTests}
-          submittingGenerate={submittingGenerate}
-          brdsMissingTests={brdsMissingTests}
-          selectedBrds={selectedBrds}
-          deliveryMode={specDeliveryMode}
-          onChange={updateField}
-          onToggleBrd={handleToggleBrd}
-          onCreatePlan={handleCreatePlan}
-          onCreatePlanAndTests={handleCreatePlanAndTests}
-          onGenerateTests={handleGenerateTests}
-        />
+        {/* ── Pipeline tab ────────────────────────────────────── */}
+        {activeTab === 'pipeline' && (
+          <PipelineStatusView
+            runs={pipeline.runs}
+            workflows={pipeline.workflows}
+            loading={pipeline.loading}
+            error={pipeline.error}
+            triggering={pipeline.triggering}
+            triggerStatus={pipeline.triggerStatus}
+            onRefresh={() => pipeline.refresh()}
+            onTrigger={pipeline.triggerWorkflow}
+          />
+        )}
+
+        {/* ── Generate tab ────────────────────────────────────── */}
+        {activeTab === 'generate' && (
+          <GenerateTestSpec
+            values={formValues}
+            planStatus={planStatus}
+            planAndTestsStatus={planAndTestsStatus}
+            generateStatus={generateStatus}
+            submittingPlan={submittingPlan}
+            submittingPlanAndTests={submittingPlanAndTests}
+            submittingGenerate={submittingGenerate}
+            brdsMissingTests={brdsMissingTests}
+            selectedBrds={selectedBrds}
+            deliveryMode={specDeliveryMode}
+            onChange={updateField}
+            onToggleBrd={handleToggleBrd}
+            onCreatePlan={handleCreatePlan}
+            onCreatePlanAndTests={handleCreatePlanAndTests}
+            onGenerateTests={handleGenerateTests}
+          />
+        )}
       </div>
     </div>
   );

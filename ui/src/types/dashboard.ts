@@ -45,3 +45,59 @@ export interface DashboardSummary {
 
 export type BRDSortKey = 'brdId' | 'requirement' | 'testCaseId' | 'status';
 export type SortDirection = 'asc' | 'desc';
+
+// ── Pipeline / GitHub Actions types ──────────────────────────────────────────
+
+export type PipelineRunStatus = 'queued' | 'in_progress' | 'completed';
+export type PipelineRunConclusion =
+  | 'success'
+  | 'failure'
+  | 'cancelled'
+  | 'skipped'
+  | 'timed_out'
+  | 'action_required'
+  | null;
+
+export interface PipelineStep {
+  name: string;
+  status: PipelineRunStatus;
+  conclusion: PipelineRunConclusion;
+  number: number;
+  startedAt: string | null;
+  completedAt: string | null;
+}
+
+export interface PipelineJob {
+  id: number;
+  name: string;
+  status: PipelineRunStatus;
+  conclusion: PipelineRunConclusion;
+  startedAt: string | null;
+  completedAt: string | null;
+  steps: PipelineStep[];
+}
+
+export interface PipelineRun {
+  id: number;
+  name: string;
+  workflowId: number;
+  workflowName: string;
+  status: PipelineRunStatus;
+  conclusion: PipelineRunConclusion;
+  branch: string;
+  commitSha: string;
+  commitMessage: string;
+  triggeredBy: string;
+  createdAt: string;
+  updatedAt: string;
+  htmlUrl: string;
+  jobs: PipelineJob[];
+}
+
+export interface WorkflowInfo {
+  id: number;
+  name: string;
+  path: string;
+  state: string;
+  hasDispatch: boolean;
+}
