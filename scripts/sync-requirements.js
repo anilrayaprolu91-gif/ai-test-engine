@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 
 const SPEC_PATH = path.join(__dirname, '../specs/spec.md');
+const SPECS_DIR = path.join(__dirname, '../specs');
 const MAPPING_PATH = path.join(__dirname, '../output/spec-mapping.json');
 
 function getToday() {
@@ -14,6 +15,17 @@ function normalizeRequirement(value) {
     .trim();
 }
 
+function normalizeBrdId(value) {
+  const normalized = String(value || '').trim().toUpperCase().replace(/_/g, '-');
+  const numeric = normalized.match(/^BRD-0*(\d+)$/i);
+  if (numeric) {
+    const parsed = String(Number(numeric[1]));
+    return `BRD-${parsed.padStart(2, '0')}`;
+  }
+
+  return normalized;
+}
+
 function parseRawInput(rawText) {
   return String(rawText || '')
     .split(/\r?\n/)
@@ -24,8 +36,42 @@ function parseRawInput(rawText) {
       if (!match) return null;
 
       return {
-        brdId: match[1].toUpperCase(),
+        brdId: normalizeBrdId(match[1]),
         requirement: normalizeRequirement(match[2]),
+      };
+    })
+    .filter(Boolean);
+}
+
+function extractSection(content, heading) {
+  const escapedHeading = heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match = String(content || '').match(new RegExp(`^# ${escapedHeading}\\s*$([\\s\\S]*?)(?=^# |\\Z)`, 'im'));
+  if (!match) return '';
+
+  return match[1]
+    .split(/\r?\n/)
+    .map(line => line.trim())
+    .find(line => line && !line.startsWith('@') && !line.startsWith('#')) || '';
+}
+
+function collectSpecFileRequirements() {
+  if (!fs.existsSync(SPECS_DIR)) return [];
+
+  return fs.readdirSync(SPECS_DIR)
+    .filter(fileName => /^brd-.*\.md$/i.test(fileName))
+    .map(fileName => {
+      const filePath = path.join(SPECS_DIR, fileName);
+      const content = fs.readFileSync(filePath, 'utf8');
+      const brdMatch = content.match(/^@brd:\s*(BRD[-_][A-Z0-9-]+)/im);
+      const requirement = extractSection(content, 'Requirement');
+
+      if (!brdMatch || !requirement) {
+        return null;
+      }
+
+      return {
+        brdId: normalizeBrdId(brdMatch[1]),
+        requirement: normalizeRequirement(requirement),
       };
     })
     .filter(Boolean);
@@ -42,7 +88,7 @@ function parseSpecTable(content) {
     if (cols.length !== 4) continue;
 
     rows.push({
-      brdId: cols[0],
+      brdId: normalizeBrdId(cols[0]),
       requirement: cols[1],
       testCaseId: cols[2],
       lastUpdated: cols[3],
@@ -99,7 +145,10 @@ function syncRequirements(rawText) {
     : '';
 
   const rows = parseSpecTable(existingContent);
-  const incoming = parseRawInput(rawText);
+  const incoming = [
+    ...collectSpecFileRequirements(),
+    ...parseRawInput(rawText),
+  ];
   const today = getToday();
 
   for (const item of incoming) {
