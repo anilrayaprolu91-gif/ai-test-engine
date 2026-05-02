@@ -69,6 +69,8 @@ jobs:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
         run: |
           for file in specs/*.md; do
+            [ -f "$file" ] || continue
+            grep -q '^@brd:' "$file" || { echo "Skipping $file (no @brd: tag)"; continue; }
             node scripts/convertSpec.js "$(basename "$file")"
           done
 
