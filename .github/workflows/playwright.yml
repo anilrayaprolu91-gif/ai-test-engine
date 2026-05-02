@@ -23,6 +23,8 @@ jobs:
           node-version: "24"
       - name: Install dependencies
         run: npm ci
+      - name: Install UI dependencies
+        run: npm ci --prefix ui
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps
       - name: Run Playwright tests

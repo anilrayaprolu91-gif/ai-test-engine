@@ -34,15 +34,31 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Install UI dependencies
+        run: npm ci --prefix ui
+
       - name: Run Playwright tests
         id: playwright
-        run: npx playwright test
+        run: PLAYWRIGHT_JSON_OUTPUT_NAME=output/playwright-report.json npx playwright test --reporter=line,json
+
+      - name: Analyze Playwright failures
+        if: failure() && steps.playwright.outcome == 'failure'
+        run: |
+          if [ -f output/playwright-report.json ]; then
+            node scripts/analyze-playwright-report.js output/playwright-report.json output/analyze-failures.json
+          else
+            echo "Skipping failure analysis: output/playwright-report.json not found."
+          fi
 
       - name: Run Healer if tests fail
         if: failure() && steps.playwright.outcome == 'failure'
         run: |
           echo "Playwright tests failed. Running Healer..."
-          node scripts/healer.js
+          if [ -f output/analyze-failures.json ] && node -e "const fs=require('fs'); const data=JSON.parse(fs.readFileSync('output/analyze-failures.json','utf8')); const items=Array.isArray(data)?data:(data.failures||data.items||[]); const actionable=items.some(item => item && String(item.category || '').toUpperCase() === 'B' && ((item.old_selector && item.new_selector) || (item.suggested_fix && item.suggested_fix.old_selector && item.suggested_fix.new_selector))); process.exit(actionable ? 0 : 1);"; then
+            node scripts/batch-heal.js output/analyze-failures.json
+          else
+            echo "Skipping healer: no actionable locator fixes found."
+          fi
 
       - name: Create PR for healed code
         if: failure() && steps.playwright.outcome == 'failure' && github.event_name == 'push'
