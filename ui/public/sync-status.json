@@ -1,5 +1,17 @@
 {
   "buildId": "local-fresh-start",
-  "updatedAt": null,
-  "results": []
+  "updatedAt": "2026-05-03T00:00:00.000Z",
+  "results": [
+    {
+      "brdId": "BRD-01",
+      "requirement": "Users must be able to log in with valid credentials.",
+      "testCaseId": "TC-BRD-01-001",
+      "testCases": [
+        { "id": "TC-BRD-01-001", "description": "Verify login with valid username and password succeeds." }
+      ],
+      "status": "passing",
+      "hasTestPlan": true,
+      "hasGeneratedTest": true
+    }
+  ]
 }
