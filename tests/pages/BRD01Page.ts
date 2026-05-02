@@ -1,7 +1,7 @@
 import { Page, Locator } from 'playwright';
 
-class BRD01Page {
-  private page: Page;
+export class BRD01Page {
+  public readonly page: Page;
 
   constructor(page: Page) {
     this.page = page;
