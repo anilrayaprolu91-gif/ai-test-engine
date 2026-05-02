@@ -1,32 +1,5 @@
 {
-  "buildId": "local-1777623622727",
-  "updatedAt": "2026-05-01T08:20:22.727Z",
-  "results": [
-    {
-      "brdId": "BRD-01",
-      "requirement": "User must be able to reset password via email.",
-      "testCaseId": "TC-101",
-      "testCases": [
-        {
-          "id": "TC-101",
-          "description": "User can navigate to the page"
-        },
-        {
-          "id": "TC-102",
-          "description": "User can see the documentation link"
-        },
-        {
-          "id": "TC-103",
-          "description": "User can see the testing guide button"
-        },
-        {
-          "id": "TC-104",
-          "description": "User can see the bug hunting button"
-        }
-      ],
-      "status": "passing",
-      "hasTestPlan": true,
-      "hasGeneratedTest": true
-    }
-  ]
+  "buildId": "local-fresh-start",
+  "updatedAt": null,
+  "results": []
 }
