@@ -15,10 +15,10 @@ function parseArgs(argv) {
     help,
     specFile: specArg ? specArg.split('=')[1] : null,
     source: fromPlans
-      ? 'test-plans'
+      ? 'plan'
       : sourceArg
         ? sourceArg.split('=').slice(1).join('=')
-        : 'specs',
+        : 'spec',
   };
 }
 
@@ -44,12 +44,12 @@ function main() {
   const specDir = path.resolve(source);
 
   if (help) {
-    console.log('Usage: node scripts/generate-local-tests.js --all OR --spec=<file.md> [--source=specs|test-plans]');
+    console.log('Usage: node scripts/generate-local-tests.js --all OR --spec=<file.md> [--source=spec|plan]');
     process.exit(0);
   }
 
   if (!fs.existsSync(specDir)) {
-    if (source === 'test-plans') {
+    if (source === 'plan') {
       console.log(`Source directory not found: ${specDir}`);
       console.log('Create a planner document first: npm run plan:create -- --brd=BRD-01 --url=https://example.com --goal="..."');
       process.exit(0);
@@ -71,7 +71,7 @@ function main() {
   } else if (all) {
     files = getLocalSpecFiles(specDir);
   } else {
-    console.error('Usage: node scripts/generate-local-tests.js --all OR --spec=<file.md> [--source=specs|test-plans]');
+    console.error('Usage: node scripts/generate-local-tests.js --all OR --spec=<file.md> [--source=spec|plan]');
     process.exit(1);
   }
 

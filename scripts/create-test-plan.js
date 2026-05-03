@@ -1,9 +1,10 @@
 // Generates a structured natural-language test plan from a BRD using centralized AI config.
-// Test plans are stored in test-plans/ and tracked in spec-mapping.json.
+// Test plans are stored in plan/ (or custom output dir) and tracked in spec-mapping.json.
 // These are NOT Playwright test scripts — they document intent only.
 //
 // Usage:
 //   node scripts/create-test-plan.js --brd=BRD-01 --url=https://example.com --goal="Verify password reset"
+//   node scripts/create-test-plan.js --brd=BRD-01 --agent="playwright/cli planner" --output-dir=plan
 
 const fs = require('fs');
 const path = require('path');
@@ -22,17 +23,23 @@ function parseArgs(argv) {
   const brdArg = args.find(a => a.startsWith('--brd='));
   const urlArg = args.find(a => a.startsWith('--url='));
   const goalArg = args.find(a => a.startsWith('--goal='));
+  const agentArg = args.find(a => a.startsWith('--agent='));
+  const outputDirArg = args.find(a => a.startsWith('--output-dir='));
+  const specFileArg = args.find(a => a.startsWith('--spec-file='));
 
   return {
     brdId: brdArg ? brdArg.split('=').slice(1).join('=').toUpperCase() : null,
     url: urlArg ? urlArg.split('=').slice(1).join('=') : '',
     goal: goalArg ? goalArg.split('=').slice(1).join('=') : '',
+    plannerAgent: agentArg ? agentArg.split('=').slice(1).join('=') : 'playwright/cli planner',
+    outputDir: outputDirArg ? outputDirArg.split('=').slice(1).join('=') : 'plan',
+    specFile: specFileArg ? specFileArg.split('=').slice(1).join('=') : '',
   };
 }
 
-async function generateTestPlan({ brdId, requirement, url, goal }) {
+async function generateTestPlan({ brdId, requirement, url, goal, plannerAgent }) {
   const prompt = `
-You are a senior QA architect. Generate a structured test plan document for the following business requirement.
+You are the ${plannerAgent} agent. Generate a structured test plan document for the following business requirement.
 
 Rules:
 - Write natural-language test cases only. Do NOT generate any code or Playwright scripts.
@@ -83,16 +90,20 @@ function stripCodeFences(text) {
 }
 
 async function main() {
-  const { brdId, url, goal } = parseArgs(process.argv);
+  const { brdId, url, goal, plannerAgent, outputDir, specFile } = parseArgs(process.argv);
 
   if (!brdId) {
-    console.error('Usage: node scripts/create-test-plan.js --brd=BRD-01 [--url=https://...] [--goal="..."]');
+    console.error('Usage: node scripts/create-test-plan.js --brd=BRD-01 [--url=https://...] [--goal="..."] [--agent="playwright/cli planner"] [--output-dir=plan]');
     process.exit(1);
   }
 
   const context = getGenerationContext(brdId);
 
   console.log(`Generating test plan for ${brdId}: ${context.requirement}`);
+  if (specFile) {
+    console.log(`Source spec: ${specFile}`);
+  }
+  console.log(`Planner agent: ${plannerAgent}`);
 
   const planMarkdown = stripCodeFences(
     await generateTestPlan({
@@ -100,11 +111,12 @@ async function main() {
       requirement: context.requirement,
       url,
       goal,
+      plannerAgent,
     })
   );
 
   const header = [
-    '@planner: playwright-test-planner',
+    `@planner: ${plannerAgent}`,
     '@planner_output: true',
     `@brd: ${context.brdId}`,
     `@test_case_id: ${context.testCaseId}`,
@@ -115,11 +127,11 @@ async function main() {
 
   const finalMarkdown = `${header}\n\n${planMarkdown}`;
 
-  const outputDir = path.resolve('test-plans');
+  const outputPath = path.resolve(outputDir || 'plan');
   const filename = `${Date.now()}-${context.brdId.toLowerCase()}-plan.md`;
-  const outputFile = path.join(outputDir, filename);
+  const outputFile = path.join(outputPath, filename);
 
-  fs.mkdirSync(outputDir, { recursive: true });
+  fs.mkdirSync(outputPath, { recursive: true });
   fs.writeFileSync(outputFile, finalMarkdown, 'utf8');
 
   linkTestPlan({

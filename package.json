@@ -9,7 +9,7 @@
     "sync:status": "node scripts/generate-sync-status.js",
     "sync:status:ci": "node scripts/generate-sync-status.js --failures=output/analyze-failures.json",
     "generate:local": "node scripts/generate-local-tests.js --all",
-    "generate:from-plans": "node scripts/generate-local-tests.js --all --source=test-plans",
+    "generate:from-plans": "node scripts/generate-local-tests.js --all --source=plan",
     "plan:create": "node scripts/create-test-plan.js",
     "heal:batch": "node scripts/batch-heal.js",
     "test": "playwright test",
