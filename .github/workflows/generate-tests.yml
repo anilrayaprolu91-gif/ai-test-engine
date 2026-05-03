@@ -3,6 +3,7 @@ name: Generate Playwright Tests from Specs
 on:
   pull_request:
     paths:
+      - "spec/**/*.md"
       - "specs/**/*.md"
   workflow_dispatch:
 
@@ -46,15 +47,21 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
         run: |
-          for file in specs/brd-*.md; do
+          for file in spec/*.md specs/*.md; do
             [ -f "$file" ] || continue
+            [ "$(basename "$file")" = "spec.md" ] && continue
             BRD_ID=$(grep -m1 '^@brd:' "$file" | sed 's/@brd:[[:space:]]*//')
             URL=$(grep -m1 '^@url:' "$file" | sed 's/@url:[[:space:]]*//')
             GOAL=$(grep -A1 '^# Test Goal' "$file" | tail -1 | xargs)
+            PLANNER_AGENT=$(grep -m1 '^@planner-agent:' "$file" | sed 's/@planner-agent:[[:space:]]*//')
+            [ -z "$PLANNER_AGENT" ] && PLANNER_AGENT="playwright/cli planner"
             [ -z "$BRD_ID" ] && continue
-            echo "Creating test plan for $BRD_ID..."
+            echo "Creating test plan for $BRD_ID from $file using ${PLANNER_AGENT}..."
             node scripts/create-test-plan.js \
               --brd="$BRD_ID" \
+              --spec-file="$file" \
+              --agent="$PLANNER_AGENT" \
+              --output-dir=plan \
               ${URL:+--url="$URL"} \
               ${GOAL:+--goal="$GOAL"} || echo "Plan generation failed for $BRD_ID, continuing..."
           done
@@ -66,10 +73,24 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
         run: |
-          for file in specs/*.md; do
+          for file in spec/*.md specs/*.md; do
             [ -f "$file" ] || continue
+            [ "$(basename "$file")" = "spec.md" ] && continue
             grep -q '^@brd:' "$file" || { echo "Skipping $file (no @brd: tag)"; continue; }
-            node scripts/convertSpec.js "$(basename "$file")"
+
+            MODE=$(grep -m1 '^@generation-mode:' "$file" | sed 's/@generation-mode:[[:space:]]*//')
+            GENERATE_TESTS=$(grep -m1 '^@generate-tests:' "$file" | sed 's/@generate-tests:[[:space:]]*//')
+            TEST_GENERATOR_AGENT=$(grep -m1 '^@test-generator-agent:' "$file" | sed 's/@test-generator-agent:[[:space:]]*//')
+            [ -z "$TEST_GENERATOR_AGENT" ] && TEST_GENERATOR_AGENT="playwright/cli test generator"
+
+            # Plan-only flow must never generate Playwright scripts.
+            if grep -q '^@plan-only:[[:space:]]*true' "$file" || [ "$MODE" = "plan-only" ] || [ "$GENERATE_TESTS" = "false" ]; then
+              echo "Skipping $file (mode=$MODE, generate-tests=$GENERATE_TESTS)"
+              continue
+            fi
+
+            echo "Generating Playwright tests from $file using ${TEST_GENERATOR_AGENT}..."
+            node scripts/convertSpec.js "$(basename "$file")" --input-dir="$(dirname "$file")" --agent="$TEST_GENERATOR_AGENT"
           done
 
       - name: Commit generated files to the same PR branch
@@ -80,12 +101,12 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git add tests/generated/*.spec.ts tests/pages/*.ts test-plans/*.md specs/spec.md || true
+          git add tests/generated/*.spec.ts tests/pages/*.ts plan/*.md test-plans/*.md spec/*.md specs/*.md output/spec-mapping.json || true
 
           if git diff --cached --quiet; then
             echo "No generated file changes to commit."
             exit 0
           fi
 
-          git commit -m "chore(tests): update generated test plans and Playwright files [skip ci]"
+          git commit -m "chore(generation): update generated plan/spec/test artifacts [skip ci]"
           git push origin "HEAD:${TARGET_BRANCH}"

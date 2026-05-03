@@ -2,7 +2,10 @@ const fs = require('fs');
 const path = require('path');
 
 const SPEC_PATH = path.join(__dirname, '../specs/spec.md');
-const SPECS_DIR = path.join(__dirname, '../specs');
+const SPEC_DIRS = [
+  path.join(__dirname, '../spec'),
+  path.join(__dirname, '../specs'),
+];
 const MAPPING_PATH = path.join(__dirname, '../output/spec-mapping.json');
 
 function getToday() {
@@ -55,27 +58,35 @@ function extractSection(content, heading) {
 }
 
 function collectSpecFileRequirements() {
-  if (!fs.existsSync(SPECS_DIR)) return [];
+  const all = [];
 
-  return fs.readdirSync(SPECS_DIR)
-    .filter(fileName => /\.md$/i.test(fileName) && fileName !== 'spec.md')
-    .map(fileName => {
-      const filePath = path.join(SPECS_DIR, fileName);
-      const content = fs.readFileSync(filePath, 'utf8');
-      const brdMatch = content.match(/^@brd:\s*(BRD[-_][A-Z0-9-]+)/im);
-      // Skip files that look like timestamp-only trigger specs (no real requirement)
-      const requirement = extractSection(content, 'Requirement');
+  for (const dir of SPEC_DIRS) {
+    if (!fs.existsSync(dir)) continue;
 
-      if (!brdMatch || !requirement) {
-        return null;
-      }
+    const items = fs.readdirSync(dir)
+      .filter(fileName => /\.md$/i.test(fileName) && fileName !== 'spec.md')
+      .map(fileName => {
+        const filePath = path.join(dir, fileName);
+        const content = fs.readFileSync(filePath, 'utf8');
+        const brdMatch = content.match(/^@brd:\s*(BRD[-_][A-Z0-9-]+)/im);
+        // Skip files that look like timestamp-only trigger specs (no real requirement)
+        const requirement = extractSection(content, 'Requirement');
 
-      return {
-        brdId: normalizeBrdId(brdMatch[1]),
-        requirement: normalizeRequirement(requirement),
-      };
-    })
-    .filter(Boolean);
+        if (!brdMatch || !requirement) {
+          return null;
+        }
+
+        return {
+          brdId: normalizeBrdId(brdMatch[1]),
+          requirement: normalizeRequirement(requirement),
+        };
+      })
+      .filter(Boolean);
+
+    all.push(...items);
+  }
+
+  return all;
 }
 
 function parseSpecTable(content) {

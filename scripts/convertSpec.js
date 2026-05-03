@@ -2,7 +2,7 @@
 // Usage:
 //   node scripts/convertSpec.js <file.md> --brd=BRD-01
 //   node scripts/convertSpec.js <file.md>
-//   node scripts/convertSpec.js <planner-file.md> --input-dir=test-plans
+//   node scripts/convertSpec.js <planner-file.md> --input-dir=plan
 // Supported metadata inside the markdown:
 //   @brd: BRD-01
 //   BRD_ID: BRD-01
@@ -26,6 +26,7 @@ function parseArgs(argv) {
   const specFile = args.find(arg => !arg.startsWith('--'));
   const brdArg = args.find(arg => arg.startsWith('--brd='));
   const inputDirArg = args.find(arg => arg.startsWith('--input-dir='));
+  const agentArg = args.find(arg => arg.startsWith('--agent='));
   const listModels = args.includes('--list-models');
   const fromPlans = args.includes('--from-plans');
 
@@ -33,10 +34,11 @@ function parseArgs(argv) {
     specFile,
     brdId: brdArg ? brdArg.split('=')[1].toUpperCase() : null,
     inputDir: fromPlans
-      ? 'test-plans'
+      ? 'plan'
       : inputDirArg
         ? inputDirArg.split('=').slice(1).join('=')
-        : 'specs',
+        : 'spec',
+    generatorAgent: agentArg ? agentArg.split('=').slice(1).join('=') : 'playwright/cli test generator',
     listModels,
   };
 }
@@ -51,7 +53,9 @@ function resolveInputFile(fileName, inputDir) {
       candidates.push(path.resolve(inputDir, fileName));
     }
 
+    candidates.push(path.resolve('spec', fileName));
     candidates.push(path.resolve('specs', fileName));
+    candidates.push(path.resolve('plan', fileName));
     candidates.push(path.resolve('test-plans', fileName));
     candidates.push(path.resolve(fileName));
   }
@@ -174,7 +178,7 @@ async function getPlaywrightPageContext(url) {
   }
 }
 
-async function generatePageObject({ pageContext, context, url }) {
+async function generatePageObject({ pageContext, context, url, generatorAgent }) {
   const locatorHints = pageContext.locatorSuggestions.length > 0
     ? `\nDetected locators from the live page — use these for the getter implementations:\n${pageContext.locatorSuggestions.map(l => `  ${l}`).join('\n')}`
     : '';
@@ -184,6 +188,9 @@ async function generatePageObject({ pageContext, context, url }) {
   const prompt = `
 Generate a Playwright Page Object class in TypeScript for the following page.
 Output TypeScript code ONLY — no markdown, no explanations, no code fences.
+
+Agent identity:
+- You are the ${generatorAgent} agent.
 
 Rules:
 - Class name: ${className}
@@ -211,7 +218,7 @@ ${pageContext.accessibilityTree}
   return { code, className };
 }
 
-async function convertMarkdownToTest({ markdown, pageContext, context, pageObjectClassName, pageObjectRelativePath }) {
+async function convertMarkdownToTest({ markdown, pageContext, context, pageObjectClassName, pageObjectRelativePath, generatorAgent }) {
   const locatorHints = pageContext.locatorSuggestions.length > 0
     ? `\nDetected Playwright locators from live page (for reference only — prefer Page Object methods):\n${pageContext.locatorSuggestions.map(l => `  ${l}`).join('\n')}`
     : '';
@@ -219,6 +226,9 @@ async function convertMarkdownToTest({ markdown, pageContext, context, pageObjec
   const prompt = `
 Convert the following Markdown spec into a valid Playwright TypeScript test file.
 Output TypeScript code ONLY — no markdown, no explanations, no code fences.
+
+Agent identity:
+- You are the ${generatorAgent} agent.
 
 ━━━ PAGE OBJECT MODEL (MANDATORY) ━━━
 - Import the Page Object: import { ${pageObjectClassName} } from '${pageObjectRelativePath}';
@@ -289,16 +299,16 @@ async function printModels() {
 }
 
 async function main() {
-  const { specFile, brdId: brdIdFromArgs, inputDir } = parseArgs(process.argv);
+  const { specFile, brdId: brdIdFromArgs, inputDir, generatorAgent } = parseArgs(process.argv);
 
   if (!specFile) {
-    console.error('Usage: node scripts/convertSpec.js <file.md> [--brd=BRD-01] [--input-dir=specs|test-plans]');
+    console.error('Usage: node scripts/convertSpec.js <file.md> [--brd=BRD-01] [--input-dir=spec|plan] [--agent="playwright/cli test generator"]');
     process.exit(1);
   }
 
   const specPath = resolveInputFile(specFile, inputDir);
   if (!fs.existsSync(specPath)) {
-    console.error(`Input file not found for ${specFile}. Tried input-dir=${inputDir}, specs/, and test-plans/.`);
+    console.error(`Input file not found for ${specFile}. Tried input-dir=${inputDir}, spec/, specs/, plan/, and test-plans/.`);
     process.exit(1);
   }
 
@@ -330,6 +340,7 @@ async function main() {
     pageContext,
     context,
     url: metadata.url || '',
+    generatorAgent,
   });
   const poCode = stripCodeFences(rawPoCode);
 
@@ -350,6 +361,7 @@ async function main() {
     context,
     pageObjectClassName,
     pageObjectRelativePath,
+    generatorAgent,
   });
 
   tsCode = stripCodeFences(tsCode);

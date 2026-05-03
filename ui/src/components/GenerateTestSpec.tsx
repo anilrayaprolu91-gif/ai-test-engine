@@ -62,7 +62,7 @@ export function GenerateTestSpec({
 
   const localNote =
     deliveryMode === 'local' && isRunningLocally
-      ? 'Local mode: files are downloaded. Move them to the correct folder, then run the local generation command.'
+      ? 'Local mode: files are downloaded. Move spec files into spec/ and run the local generation commands.'
       : null;
 
   return (
@@ -191,7 +191,7 @@ export function GenerateTestSpec({
               <span className="font-semibold text-slate-700 dark:text-slate-300">Plan Only</span> — Creates a natural-language test plan with Gherkin-style scenarios. Submits a PR for your review. No Playwright code generated.
             </div>
             <div className="mt-1">
-              <span className="font-semibold text-slate-700 dark:text-slate-300">Plan + Tests</span> — Creates the same test plan and also triggers Playwright test script generation. Submits separate PRs per stage.
+              <span className="font-semibold text-slate-700 dark:text-slate-300">Plan + Tests</span> — Creates the same test plan and also triggers Playwright test script generation. Submits one PR containing spec, plan, and generated tests.
             </div>
           </div>
         </div>
