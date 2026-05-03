@@ -266,29 +266,42 @@ export default function App() {
     });
     const baseSha = refData.object.sha;
 
-    // Create a unique feature branch
+    // Create a unique feature branch name (branch created after commit below)
     const slug = files[0].path.split('/').pop()?.replace(/\.md$/i, '') ?? 'spec';
     const branchName = `feat/spec-${slug}-${Date.now()}`;
+
+    // Build a single git tree with all files so they land in ONE commit.
+    const { data: baseCommit } = await octokit.git.getCommit({
+      owner: githubOwner,
+      repo: githubRepo,
+      commit_sha: baseSha,
+    });
+    const { data: newTree } = await octokit.git.createTree({
+      owner: githubOwner,
+      repo: githubRepo,
+      base_tree: baseCommit.tree.sha,
+      tree: files.map(file => ({
+        path: file.path,
+        mode: '100644' as const,
+        type: 'blob' as const,
+        content: file.markdown,
+      })),
+    });
+    const { data: newCommit } = await octokit.git.createCommit({
+      owner: githubOwner,
+      repo: githubRepo,
+      message: commitMessage,
+      tree: newTree.sha,
+      parents: [baseSha],
+      committer: { name: 'AI Test Engine', email: 'ai-test-engine@example.com' },
+      author: { name: 'AI Test Engine', email: 'ai-test-engine@example.com' },
+    });
     await octokit.git.createRef({
       owner: githubOwner,
       repo: githubRepo,
       ref: `refs/heads/${branchName}`,
-      sha: baseSha,
+      sha: newCommit.sha,
     });
-
-    // Push all files to the same branch so they appear in a single PR.
-    for (const file of files) {
-      await octokit.repos.createOrUpdateFileContents({
-        owner: githubOwner,
-        repo: githubRepo,
-        path: file.path,
-        message: commitMessage,
-        content: btoa(unescape(encodeURIComponent(file.markdown))),
-        branch: branchName,
-        committer: { name: 'AI Test Engine', email: 'ai-test-engine@example.com' },
-        author: { name: 'AI Test Engine', email: 'ai-test-engine@example.com' },
-      });
-    }
 
     // Open a PR into main
     const { data: pr } = await octokit.pulls.create({
