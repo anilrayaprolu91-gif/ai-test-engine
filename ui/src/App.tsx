@@ -247,7 +247,12 @@ export default function App() {
     };
   };
 
-  const downloadLocally = (markdown: string, folder: 'plan' | 'spec', fileName: string) => {
+  const downloadLocally = (
+    markdown: string,
+    folder: 'plan' | 'spec',
+    fileName: string,
+    commandOverride?: string,
+  ) => {
     const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -255,9 +260,9 @@ export default function App() {
     link.download = fileName;
     link.click();
     window.URL.revokeObjectURL(url);
-    const cmd = folder === 'spec'
+    const cmd = commandOverride || (folder === 'spec'
       ? `node scripts/convertSpec.js ${fileName} --brd=${formValues.brdId || 'BRD-01'}`
-      : `node scripts/create-test-plan.js --brd=${formValues.brdId || 'BRD-01'} --url=${formValues.targetUrl}`;
+      : `node scripts/create-test-plan.js --brd=${formValues.brdId || 'BRD-01'} --url=${formValues.targetUrl}`);
     return `Downloaded ${fileName}. Move to ${folder}/ and run: ${cmd}`;
   };
 
@@ -348,7 +353,8 @@ export default function App() {
       // Push a @plan-only spec so CI runs create-test-plan.js (AI) but skips convertSpec.js (no Playwright tests)
       const { primarySpec, fullSpec, fileName } = buildSpecArtifacts('plan-only');
       if (specDeliveryMode === 'local') {
-        setPlanStatus(downloadLocally(primarySpec.markdown, 'spec', fileName));
+        const localPlanCommand = `node scripts/create-test-plan.js --brd=${formValues.brdId || 'BRD-01'} --url=${formValues.targetUrl}`;
+        setPlanStatus(downloadLocally(primarySpec.markdown, 'spec', fileName, localPlanCommand));
         return;
       }
       const prUrl = await pushFilesToGitHub(
