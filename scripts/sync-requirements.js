@@ -58,11 +58,12 @@ function collectSpecFileRequirements() {
   if (!fs.existsSync(SPECS_DIR)) return [];
 
   return fs.readdirSync(SPECS_DIR)
-    .filter(fileName => /^brd-.*\.md$/i.test(fileName))
+    .filter(fileName => /\.md$/i.test(fileName) && fileName !== 'spec.md')
     .map(fileName => {
       const filePath = path.join(SPECS_DIR, fileName);
       const content = fs.readFileSync(filePath, 'utf8');
       const brdMatch = content.match(/^@brd:\s*(BRD[-_][A-Z0-9-]+)/im);
+      // Skip files that look like timestamp-only trigger specs (no real requirement)
       const requirement = extractSection(content, 'Requirement');
 
       if (!brdMatch || !requirement) {
