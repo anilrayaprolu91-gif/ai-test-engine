@@ -205,23 +205,27 @@ export default function App() {
   };
 
   const resolveSpecFileName = () => {
-    const fallback = `${Date.now()}-spec`;
+    const brdSlug = formValues.brdId
+      ? formValues.brdId.toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
+      : '';
     const trimmed = formValues.specName.trim();
     const withoutExtension = trimmed.replace(/\.md$/i, '');
-    const normalized = withoutExtension
+    const nameSlug = withoutExtension
       .toLowerCase()
       .replace(/[^a-z0-9-_]+/g, '-')
       .replace(/-+/g, '-')
       .replace(/^-|-$/g, '');
-
-    return `${normalized || fallback}.md`;
+    const fallback = nameSlug || 'spec';
+    // Name as brd-{id}-{name}.md so sync-requirements.js picks it up
+    return brdSlug ? `brd-${brdSlug}-${fallback}.md` : `${fallback}.md`;
   };
 
   const buildFileContent = (folder: string) => {
     const fileName = resolveSpecFileName();
     const brdTag = formValues.brdId ? `@brd: ${formValues.brdId.toUpperCase()}\n` : '';
     const urlTag = formValues.targetUrl ? `@url: ${formValues.targetUrl}\n` : '';
-    const markdown = `${brdTag}${urlTag}\n# Requirement\n${formValues.testGoal}\n\n# Target URL\n${formValues.targetUrl}\n`;
+    // Spec in the same format as brd-*.md files so generate-tests.yml and sync-requirements.js can process it
+    const markdown = `${brdTag}${urlTag}\n# Test Goal\n\n${formValues.testGoal}\n\n# Requirement\n\n${formValues.testGoal}\n\n# Acceptance Criteria\n\n1. ${formValues.testGoal}\n`;
     const path = `${folder}/${fileName}`;
     return { path, markdown, fileName };
   };
@@ -354,7 +358,8 @@ export default function App() {
       const brdTag = formValues.brdId ? `@brd: ${formValues.brdId.toUpperCase()}\n` : '';
       const urlTag = formValues.targetUrl ? `@url: ${formValues.targetUrl}\n` : '';
       const planPath = `test-plans/${fileName.replace(/\.md$/i, '-plan.md')}`;
-      const planMarkdown = `${brdTag}${urlTag}\n# Test Goal\n${formValues.testGoal}\n\n# Requirement\n${formValues.testGoal}\n`;
+      // Plan has structured sections distinct from the spec
+      const planMarkdown = `${brdTag}${urlTag}\n# Test Goal\n\n${formValues.testGoal}\n\n# Requirement\n\n${formValues.testGoal}\n\n# Acceptance Criteria\n\n1. Verify the feature behaves as described in the test goal.\n2. Validate all happy-path and edge-case scenarios.\n3. Confirm no regressions in adjacent functionality.\n\n# Test Steps\n\n1. Navigate to ${formValues.targetUrl || 'the target URL'}.\n2. Exercise the scenario described in the requirement.\n3. Assert each acceptance criterion is met.\n`;
       const prUrl = await pushFilesToGitHub(
         [
           { path, markdown },
