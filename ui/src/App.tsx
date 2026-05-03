@@ -205,8 +205,9 @@ export default function App() {
   };
 
   const resolveSpecFileName = () => {
+    // Strip any leading 'brd-' the user may have typed in brdId or specName to avoid double prefix
     const brdSlug = formValues.brdId
-      ? formValues.brdId.toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
+      ? formValues.brdId.toLowerCase().replace(/^brd-?/i, '').replace(/[^a-z0-9-]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
       : '';
     const trimmed = formValues.specName.trim();
     const withoutExtension = trimmed.replace(/\.md$/i, '');

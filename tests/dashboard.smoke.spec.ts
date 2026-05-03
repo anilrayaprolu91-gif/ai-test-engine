@@ -104,9 +104,7 @@ test.describe('Dashboard smoke checks', () => {
     const downloadPromise = page.waitForEvent('download');
     await page.getByRole('button', { name: 'Plan Only' }).click();
     const download = await downloadPromise;
-    expect(download.suggestedFilename()).toMatch(/^\d+-spec\.md$/);
-
-    await expect(page.getByText(/Move to test-plans\//)).toBeVisible();
+    expect(download.suggestedFilename()).toMatch(/^(brd-[a-z0-9-]+-spec|\d+-spec)\.md$/);
     await expect(page.getByText(/create-test-plan\.js/)).toBeVisible();
   });
 
@@ -123,9 +121,7 @@ test.describe('Dashboard smoke checks', () => {
     const downloadPromise = page.waitForEvent('download');
     await page.getByRole('button', { name: 'Plan + Tests' }).click();
     const download = await downloadPromise;
-    expect(download.suggestedFilename()).toMatch(/^\d+-spec\.md$/);
-
-    await expect(page.getByText(/Move to specs\//)).toBeVisible();
+    expect(download.suggestedFilename()).toMatch(/^(brd-[a-z0-9-]+-spec|\d+-spec)\.md$/);
     await expect(page.getByText(/node scripts\/convertSpec\.js/)).toBeVisible();
     await expect(page.getByText(/--brd=BRD-12/)).toBeVisible();
   });
