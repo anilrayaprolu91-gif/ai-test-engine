@@ -17,8 +17,10 @@ jobs:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
       AI_PROVIDER: ${{ vars.AI_PROVIDER || 'gemini' }}
       AI_PROFILE: ${{ vars.AI_PROFILE || 'quality' }}
-      AI_MAX_RETRIES: "2"
+      AI_MAX_RETRIES: "4"
+      AI_MAX_RETRY_DELAY_MS: "60000"
       AI_CONVERT_FALLBACK_MODEL: "llama-3.1-8b-instant"
+      AI_CONVERT_MAX_TOKENS: "1024"
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
     steps:
