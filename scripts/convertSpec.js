@@ -11,7 +11,8 @@
 const fs = require('fs');
 const path = require('path');
 const { chromium } = require('@playwright/test');
-const { getGenerationContext, linkGeneratedTest } = require('../lib/specParser');
+const { getGenerationContext, linkGeneratedTest, normalizeBrdId } = require('../lib/specParser');
+const { syncRequirements } = require('./sync-requirements');
 const { getAIConfig, getMissingKeyHint } = require('../lib/aiConfig');
 const { generateText, listModels } = require('../lib/aiClient');
 
@@ -72,9 +73,55 @@ function extractMetadata(markdown) {
   const urlMatch = markdown.match(/@url:\s*(\S+)/i);
 
   return {
-    brdId: brdMatch ? brdMatch[1].toUpperCase() : null,
+    brdId: brdMatch ? normalizeBrdId(brdMatch[1]) : null,
     url: urlMatch ? urlMatch[1] : null,
   };
+}
+
+function extractRequirement(markdown) {
+  const inlineRequirement = markdown.match(/^@requirement:\s*(.+)$/im);
+  if (inlineRequirement && inlineRequirement[1]) {
+    return inlineRequirement[1].trim();
+  }
+
+  const requirementSection = markdown.match(/^#\s*Requirement\s*$([\s\S]*?)(?=^#\s|\Z)/im);
+  if (requirementSection && requirementSection[1]) {
+    const firstContentLine = requirementSection[1]
+      .split(/\r?\n/)
+      .map(line => line.trim())
+      .find(line => line && !line.startsWith('@') && !line.startsWith('#'));
+
+    if (firstContentLine) {
+      return firstContentLine;
+    }
+  }
+
+  const firstParagraph = String(markdown || '')
+    .split(/\r?\n\r?\n/)
+    .map(block => block.trim())
+    .find(block => block && !block.startsWith('@') && !block.startsWith('#'));
+
+  return firstParagraph || '';
+}
+
+function getOrCreateGenerationContext(brdId, markdown) {
+  try {
+    return getGenerationContext(brdId);
+  } catch (error) {
+    if (!String(error && error.message).includes('BRD not found')) {
+      throw error;
+    }
+
+    const requirement = extractRequirement(markdown);
+    if (!requirement) {
+      throw new Error(
+        `BRD not found in mapping (${normalizeBrdId(brdId)}), and no requirement text was found in the spec to auto-sync. Add a \"# Requirement\" section or run npm run sync:requirements first.`
+      );
+    }
+
+    syncRequirements(`${normalizeBrdId(brdId)}: ${requirement}`);
+    return getGenerationContext(brdId);
+  }
 }
 
 function stripCodeFences(code) {
@@ -315,14 +362,14 @@ async function main() {
   const markdown = fs.readFileSync(specPath, 'utf8');
   console.log(`Using input file: ${specPath}`);
   const metadata = extractMetadata(markdown);
-  const brdId = brdIdFromArgs || metadata.brdId;
+  const brdId = normalizeBrdId(brdIdFromArgs || metadata.brdId);
 
   if (!brdId) {
     console.error('BRD_ID not found. Pass --brd=BRD-01 or add "@brd: BRD-01" to the spec file.');
     process.exit(1);
   }
 
-  const context = getGenerationContext(brdId);
+  const context = getOrCreateGenerationContext(brdId, markdown);
 
   let pageContext = {
     accessibilityTree: 'No URL provided; accessibility tree unavailable.',
