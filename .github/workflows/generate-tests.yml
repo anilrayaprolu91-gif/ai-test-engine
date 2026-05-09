@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   generate-tests:
@@ -44,58 +45,8 @@ jobs:
       - name: Regenerate spec mapping
         run: npm run sync:requirements
 
-      - name: Generate test plans from specs
-        env:
-          AI_PROVIDER: ${{ vars.AI_PROVIDER || 'gemini' }}
-          AI_PROFILE: ${{ vars.AI_PROFILE || 'quality' }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-        run: |
-          for file in spec/*.md specs/*.md; do
-            [ -f "$file" ] || continue
-            [ "$(basename "$file")" = "spec.md" ] && continue
-            BRD_ID=$(grep -m1 '^@brd:' "$file" | sed 's/@brd:[[:space:]]*//')
-            URL=$(grep -m1 '^@url:' "$file" | sed 's/@url:[[:space:]]*//')
-            GOAL=$(grep -A1 '^# Test Goal' "$file" | tail -1 | xargs)
-            PLANNER_AGENT=$(grep -m1 '^@planner-agent:' "$file" | sed 's/@planner-agent:[[:space:]]*//')
-            [ -z "$PLANNER_AGENT" ] && PLANNER_AGENT="playwright/cli planner"
-            [ -z "$BRD_ID" ] && continue
-            echo "Creating test plan for $BRD_ID from $file using ${PLANNER_AGENT}..."
-            node scripts/create-test-plan.js \
-              --brd="$BRD_ID" \
-              --spec-file="$file" \
-              --agent="$PLANNER_AGENT" \
-              --output-dir=plan \
-              ${URL:+--url="$URL"} \
-              ${GOAL:+--goal="$GOAL"} || echo "Plan generation failed for $BRD_ID, continuing..."
-          done
-
-      - name: Generate Playwright tests from specs
-        env:
-          AI_PROVIDER: ${{ vars.AI_PROVIDER || 'gemini' }}
-          AI_PROFILE: ${{ vars.AI_PROFILE || 'quality' }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-        run: |
-          for file in spec/*.md specs/*.md; do
-            [ -f "$file" ] || continue
-            [ "$(basename "$file")" = "spec.md" ] && continue
-            grep -q '^@brd:' "$file" || { echo "Skipping $file (no @brd: tag)"; continue; }
-
-            MODE=$(grep -m1 '^@generation-mode:' "$file" | sed 's/@generation-mode:[[:space:]]*//')
-            GENERATE_TESTS=$(grep -m1 '^@generate-tests:' "$file" | sed 's/@generate-tests:[[:space:]]*//')
-            TEST_GENERATOR_AGENT=$(grep -m1 '^@test-generator-agent:' "$file" | sed 's/@test-generator-agent:[[:space:]]*//')
-            [ -z "$TEST_GENERATOR_AGENT" ] && TEST_GENERATOR_AGENT="playwright/cli test generator"
-
-            # Plan-only flow must never generate Playwright scripts.
-            if grep -q '^@plan-only:[[:space:]]*true' "$file" || [ "$MODE" = "plan-only" ] || [ "$GENERATE_TESTS" = "false" ]; then
-              echo "Skipping $file (mode=$MODE, generate-tests=$GENERATE_TESTS)"
-              continue
-            fi
-
-            echo "Generating Playwright tests from $file using ${TEST_GENERATOR_AGENT}..."
-            node scripts/convertSpec.js "$(basename "$file")" --input-dir="$(dirname "$file")" --agent="$TEST_GENERATOR_AGENT"
-          done
+      - name: Run generation orchestrator
+        run: node scripts/generate-from-specs.js
 
       - name: Commit generated files to the same PR branch
         if: ${{ github.event_name == 'pull_request' }}
@@ -114,3 +65,26 @@ jobs:
 
           git commit -m "chore(generation): update generated plan/spec/test artifacts [skip ci]"
           git push origin "HEAD:${TARGET_BRANCH}"
+
+      - name: Create a single PR for generated artifacts
+        if: ${{ github.event_name != 'pull_request' }}
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.WORKFLOW_PUSH_TOKEN || github.token }}
+          commit-message: "chore(generation): update generated plan/spec/test artifacts [skip ci]"
+          title: "chore(generation): update generated plan/spec/test artifacts"
+          body: |
+            This PR contains generated artifacts from spec processing.
+
+            - Plans and tests were produced by scripts/generate-from-specs.js
+            - Workflow contains orchestration only; generation logic lives in JS scripts
+          branch: chore/generated-spec-artifacts
+          delete-branch: false
+          add-paths: |
+            tests/generated/*.spec.ts
+            tests/pages/*.ts
+            plan/*.md
+            test-plans/*.md
+            spec/*.md
+            specs/*.md
+            output/spec-mapping.json

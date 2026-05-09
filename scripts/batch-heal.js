@@ -185,7 +185,7 @@ function runPlaywrightGrep(tokens) {
   }
 
   const grepPattern = tokens.map(escapeRegex).join('|');
-  const args = ['playwright', 'test', '--grep', grepPattern];
+  const args = ['playwright', 'test', 'tests/generated', '--grep', grepPattern];
   const result = spawnSync('npx', args, { cwd: ROOT, encoding: 'utf8' });
 
   return {
