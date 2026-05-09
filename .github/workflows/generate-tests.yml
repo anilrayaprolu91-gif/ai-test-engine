@@ -56,7 +56,10 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git add tests/generated/*.spec.ts tests/pages/*.ts plan/*.md test-plans/*.md spec/*.md specs/*.md output/spec-mapping.json || true
+          git add tests/generated/ tests/pages/ output/spec-mapping.json 2>/dev/null || true
+          for dir in plan test-plans spec specs; do
+            [ -d "$dir" ] && git add "$dir/"*.md 2>/dev/null || true
+          done
 
           if git diff --cached --quiet; then
             echo "No generated file changes to commit."
@@ -81,10 +84,6 @@ jobs:
           branch: chore/generated-spec-artifacts
           delete-branch: false
           add-paths: |
-            tests/generated/*.spec.ts
-            tests/pages/*.ts
-            plan/*.md
-            test-plans/*.md
-            spec/*.md
-            specs/*.md
+            tests/generated/
+            tests/pages/
             output/spec-mapping.json
