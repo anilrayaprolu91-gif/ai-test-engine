@@ -1,0 +1,51 @@
+@brd: BRD-010
+@url: https://practicesoftwaretesting.com
+@generation-mode: plan-and-tests
+@planner-agent: playwright/cli planner
+@test-generator-agent: playwright/cli test generator
+@generate-tests: true
+
+# Test Goal
+
+Validate product detail page information.
+
+# Requirement
+
+User can open a product detail page and view key information.
+
+# Acceptance Criteria
+
+1. Clicking a product opens detail page.
+2. Product title is visible on detail page.
+3. Product price is visible on detail page.
+4. Product description or key info section is visible.
+
+# Requirement
+
+Validate product detail page information.
+
+# Requirement
+
+User can open a product detail page and view key information.
+
+# Acceptance Criteria
+
+1. Clicking a product opens detail page.
+2. Product title is visible on detail page.
+3. Product price is visible on detail page.
+4. Product description or key info section is visible.
+
+# Acceptance Criteria
+
+1. Validate product detail page information.
+
+# Requirement
+
+User can open a product detail page and view key information.
+
+# Acceptance Criteria
+
+1. Clicking a product opens detail page.
+2. Product title is visible on detail page.
+3. Product price is visible on detail page.
+4. Product description or key info section is visible.
