@@ -4,7 +4,7 @@
 
 ### Prerequisites
 
-- Node.js v16 or higher
+- Node.js v18 or higher
 - Git
 - Gemini API key (free tier available)
 
@@ -94,12 +94,21 @@ npm run generate:from-plans
 
 Notes:
 
-- Planner documents are written to `test-plans/`.
+- Planner documents are written to `plan/` by default.
 - The generator reads metadata tags from planner docs (`@brd`, `@url`) and converts them into tests.
 - You can also target one planner document:
 
 ```bash
-node scripts/generate-local-tests.js --spec=<plan-file>.md --source=test-plans
+node scripts/generate-local-tests.js --spec=<plan-file>.md --source=plan
+```
+
+### Generate Plans + Tests from Spec Files
+
+Use the combined pipeline to process markdown specs in `spec/` and `specs/`:
+
+```bash
+# Creates plan docs in plan/ and (unless plan-only) generated Playwright tests
+npm run generate:specs
 ```
 
 ### Local-Only Testing (No GitHub API)
@@ -121,8 +130,14 @@ node scripts/convertSpec.js <downloaded-file>.md --brd=BRD-01
 ### 5. Run Tests
 
 ```bash
-# Run all generated tests
+# Run only generated tests under tests/generated
+npm run test:generated
+
+# Run all Playwright tests in this repository
 npm test
+
+# Run smoke suite (used by pre-push checks)
+npm run test:smoke
 
 # View detailed report
 npm run test:report
@@ -138,15 +153,17 @@ See **`ARCHITECTURE.md`** for complete architecture and concepts.
 
 ## 🔗 Key Files
 
-| File                           | Purpose                            |
-| ------------------------------ | ---------------------------------- |
-| `specs/spec.md`                | Living Specification (the "brain") |
-| `output/spec-mapping.json`     | JSON mirror of spec.md             |
-| `scripts/sync-requirements.js` | Adds/updates requirements          |
-| `scripts/convertSpec.js`       | AI test generator                  |
-| `lib/healer.js`                | Confidence-score self-healer logic |
-| `lib/specParser.js`            | Data reader/linker                 |
-| `package.json`                 | Project configuration              |
+| File                             | Purpose                                       |
+| -------------------------------- | --------------------------------------------- |
+| `specs/spec.md`                  | Living Specification (the "brain")            |
+| `output/spec-mapping.json`       | JSON mirror of spec.md                        |
+| `scripts/sync-requirements.js`   | Adds/updates requirements                     |
+| `scripts/convertSpec.js`         | AI test generator                             |
+| `scripts/generate-from-specs.js` | Batch plan/test generation from spec markdown |
+| `scripts/run-generated-tests.js` | Runs only tests in tests/generated            |
+| `lib/healer.js`                  | Confidence-score self-healer logic            |
+| `lib/specParser.js`              | Data reader/linker                            |
+| `package.json`                   | Project configuration                         |
 
 ---
 
@@ -165,7 +182,7 @@ See **`ARCHITECTURE.md`** for complete architecture and concepts.
 A: Add them via `npm run sync:requirements -- "BRD-XX: Text"`
 
 **Q: How do tests get created?**
-A: Gemini AI generates them from your spec files.
+A: The configured AI provider (Gemini or Groq) generates them from your spec files.
 
 **Q: What if a test fails?**
 A: Use `npm test` to see which TC failed, then trace back to the BRD in `spec.md`.
@@ -197,13 +214,13 @@ A: In `required.env` (NEVER commit this to Git).
 3. Generate test
    node scripts/convertSpec.js login.md --brd=BRD-01
 
-4. Run tests
-   npm test
+4. Run generated tests
+   npm run test:generated
 
 5. If fails, trace BRD → fix → regenerate
    npm run sync:requirements -- "BRD-01: Updated"
    node scripts/convertSpec.js login.md --brd=BRD-01
-   npm test
+   npm run test:generated
 ```
 
 ---
@@ -239,5 +256,5 @@ node scripts/batch-heal.js output/analyze-failures.json --commit
 
 ---
 
-**Last Updated:** 2026-04-29
-**Version:** 1.0
+**Last Updated:** 2026-05-10
+**Version:** 1.1
