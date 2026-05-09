@@ -67,12 +67,15 @@ Each row is **unique** and stays linked to:
   "scripts": {
     "sync": "node scripts/sync-requirements.js",
     "sync:requirements": "node scripts/sync-requirements.js",
+    "generate:specs": "node scripts/generate-from-specs.js",
+    "test:generated": "node scripts/run-generated-tests.js --reporter=line",
     "test": "playwright test",
     "test:report": "playwright show-report"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1", // AI engine (Gemini)
-    "dotenv": "^17.4.2" // Reads .env file
+    "dotenv": "^17.4.2", // Reads required.env file
+    "openai": "^6.35.0" // Groq/OpenAI-compatible client
   },
   "devDependencies": {
     "@playwright/test": "^1.59.1" // Browser automation
@@ -91,7 +94,8 @@ Each row is **unique** and stays linked to:
 ```bash
 npm install                          # Install all dependencies
 npm run sync:requirements -- "..."   # Add/update requirements
-npm test                             # Run all generated tests
+npm run test:generated               # Run generated tests only
+npm test                             # Run all Playwright tests
 npm run test:report                  # View test results
 ```
 
@@ -725,8 +729,8 @@ BRD-04 → TC-104 → TC-104.spec.ts
 ### Workflow 3: Running Tests & Failure Traceability
 
 ```
-npm test
-(Runs all tests in tests/generated/)
+npm run test:generated
+(Runs tests discovered under tests/generated/)
 
         ↓
 
@@ -960,7 +964,23 @@ npm run sync:requirements -- "BRD-01: Requirement text"
 npm run sync:requirements -- "BRD-01: Text | BRD-02: Text"
 npm run sync                # Alias for sync:requirements
 
-# Run all generated tests
+# Batch-generate plans/tests from markdown specs
+npm run generate:specs
+
+# Generate tests from local specs or plan docs
+npm run generate:local
+npm run generate:from-plans
+
+# Planner doc for a single BRD
+npm run plan:create -- --brd=BRD-01 --url=https://example.com --goal="..."
+
+# Run generated tests only
+npm run test:generated
+
+# Run smoke suite used by pre-push checks
+npm run test:smoke
+
+# Run all tests
 npm test
 
 # Show test report/results
@@ -1042,9 +1062,9 @@ Before handing over to someone else, ensure:
 
 **System Setup:**
 
-- [ ] Node.js v16+ installed
+- [ ] Node.js v18+ installed
 - [ ] `npm install` has been run
-- [ ] `.env` file exists with `GEMINI_API_KEY`
+- [ ] `required.env` file exists with `GEMINI_API_KEY` or `GROQ_API_KEY`
 - [ ] `specs/` directory exists
 - [ ] `output/` directory exists
 - [ ] `tests/generated/` directory exists
@@ -1053,7 +1073,7 @@ Before handing over to someone else, ensure:
 
 - [ ] `specs/spec.md` exists with at least 2-3 requirements
 - [ ] `output/spec-mapping.json` mirrors `spec.md`
-- [ ] `.gitignore` includes `.env` and `node_modules/`
+- [ ] `.gitignore` includes `required.env` and `node_modules/`
 - [ ] `package.json` has all scripts defined
 
 **Knowledge Transfer:**
@@ -1075,6 +1095,6 @@ Before handing over to someone else, ensure:
 
 ---
 
-**Last Updated:** 2026-04-29
-**Version:** 1.0
+**Last Updated:** 2026-05-10
+**Version:** 1.1
 **Maintained by:** QA Architect Team
