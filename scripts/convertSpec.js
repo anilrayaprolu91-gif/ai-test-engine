@@ -11,7 +11,7 @@
 const fs = require('fs');
 const path = require('path');
 const { chromium } = require('@playwright/test');
-const { getGenerationContext, linkGeneratedTest, normalizeBrdId } = require('../lib/specParser');
+const { getGenerationContext, linkGeneratedTest, normalizeBrdId, loadSpecMapping } = require('../lib/specParser');
 const { syncRequirements } = require('./sync-requirements');
 const { getAIConfig, getMissingKeyHint } = require('../lib/aiConfig');
 const { generateText, listModels } = require('../lib/aiClient');
@@ -71,10 +71,109 @@ function extractMetadata(markdown) {
     markdown.match(/BRD_ID:\s*(BRD-[A-Z0-9-]+)/i);
 
   const urlMatch = markdown.match(/@url:\s*(\S+)/i);
+  const tabMatch = markdown.match(/@tab:\s*(.+)$/im);
+  const pageMatch = markdown.match(/@page:\s*(.+)$/im);
+  const scopeMatch = markdown.match(/@page-scope:\s*(.+)$/im);
 
   return {
     brdId: brdMatch ? normalizeBrdId(brdMatch[1]) : null,
     url: urlMatch ? urlMatch[1] : null,
+    tab: tabMatch ? tabMatch[1].trim() : '',
+    page: pageMatch ? pageMatch[1].trim() : '',
+    pageScope: scopeMatch ? scopeMatch[1].trim() : '',
+  };
+}
+
+function getSectionFirstLine(markdown, title) {
+  const section = String(markdown || '').match(new RegExp(`^#\\s*${title}\\s*$([\\s\\S]*?)(?=^#\\s|\\Z)`, 'im'));
+  if (!section || !section[1]) {
+    return '';
+  }
+
+  return section[1]
+    .split(/\r?\n/)
+    .map(line => line.trim())
+    .find(line => line && !line.startsWith('@') && !line.startsWith('#')) || '';
+}
+
+function toPascalCase(value) {
+  const words = String(value || '')
+    .replace(/[^a-zA-Z0-9]+/g, ' ')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  const name = words
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join('');
+
+  if (!name) {
+    return 'Generated';
+  }
+
+  if (/^[0-9]/.test(name)) {
+    return `P${name}`;
+  }
+
+  return name;
+}
+
+function normalizeScopeLabel(value) {
+  const stopWords = new Set(['user', 'users', 'can', 'open', 'view', 'see', 'the', 'a', 'an']);
+  const words = String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]+/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean)
+    .filter(word => !stopWords.has(word));
+
+  const compact = words.slice(0, 4).join(' ');
+  return compact || String(value || '').trim();
+}
+
+function inferPageBaseName({ metadata, markdown, context }) {
+  const requirement = String(context.requirement || '');
+  const requirementPageMatch = requirement.match(/([a-z0-9][a-z0-9\s-]{1,60}?)\s+page\b/i);
+  const tabSection = getSectionFirstLine(markdown, 'Tab');
+  const pageSection = getSectionFirstLine(markdown, 'Page');
+
+  const candidates = [
+    metadata.tab,
+    metadata.page,
+    metadata.pageScope,
+    tabSection,
+    pageSection,
+    requirementPageMatch ? normalizeScopeLabel(requirementPageMatch[1]) : '',
+    context.brdId,
+  ].map(item => String(item || '').trim()).filter(Boolean);
+
+  return candidates[0] || context.brdId;
+}
+
+function buildPageDescriptor({ metadata, markdown, context }) {
+  const baseName = inferPageBaseName({ metadata, markdown, context });
+  const classBase = toPascalCase(baseName);
+  const className = /Page$/i.test(classBase) ? classBase : `${classBase}Page`;
+
+  return {
+    className,
+    scopeLabel: baseName,
+  };
+}
+
+function summarizeExistingPageObject(existingCode) {
+  const code = String(existingCode || '');
+  const getterMatches = Array.from(code.matchAll(/^\s*get\s+([A-Za-z0-9_]+)\s*\(\)\s*:/gm));
+  const methodMatches = Array.from(code.matchAll(/^\s*async\s+([A-Za-z0-9_]+)\s*\(/gm));
+
+  const getters = [...new Set(getterMatches.map(match => match[1]))];
+  const methods = [...new Set(methodMatches.map(match => match[1]).filter(name => name !== 'goto'))];
+
+  return {
+    getterCount: getters.length,
+    methodCount: methods.length,
+    getters,
+    methods,
   };
 }
 
@@ -156,6 +255,35 @@ function ensureHealerAndTraceability(tsCode, context) {
   return code;
 }
 
+async function repairGeneratedTestCompliance({ tsCode, context, pageObjectClassName, pageObjectRelativePath, generatorAgent }) {
+  const prompt = `
+Rewrite the Playwright TypeScript test below so it is fully compliant.
+Output TypeScript code ONLY — no markdown, no explanations, no code fences.
+
+Agent identity:
+- You are the ${generatorAgent} agent.
+
+Hard requirements:
+- Keep the existing behavior and assertions as much as possible.
+- Include this import exactly once: import { analyzeLocator } from '../../lib/healer';
+- Add at least one healer call before critical interaction(s):
+    const result = await analyzeLocator({ page, selector });
+- Ensure test titles and annotations include Test_Case_ID: ${context.testCaseId}
+- Ensure BRD annotation uses BRD_ID: ${context.brdId}
+- Keep or restore Page Object usage with:
+    import { ${pageObjectClassName} } from '${pageObjectRelativePath}';
+- Return valid compilable Playwright TypeScript.
+
+Current test code:
+${tsCode}
+`.trim();
+
+  return generateText({
+    task: 'convert',
+    prompt,
+  });
+}
+
 async function getPlaywrightPageContext(url) {
   const browser = await chromium.launch();
   const page = await browser.newPage();
@@ -225,12 +353,12 @@ async function getPlaywrightPageContext(url) {
   }
 }
 
-async function generatePageObject({ pageContext, context, url, generatorAgent }) {
+async function generatePageObject({ pageContext, context, pageDescriptor, url, generatorAgent }) {
   const locatorHints = pageContext.locatorSuggestions.length > 0
     ? `\nDetected locators from the live page — use these for the getter implementations:\n${pageContext.locatorSuggestions.map(l => `  ${l}`).join('\n')}`
     : '';
 
-  const className = context.brdId.replace(/[^A-Z0-9]/gi, '') + 'Page';
+  const className = pageDescriptor.className;
 
   const prompt = `
 Generate a Playwright Page Object class in TypeScript for the following page.
@@ -241,12 +369,16 @@ Agent identity:
 
 Rules:
 - Class name: ${className}
+- Export the class as: export class ${className}
+- Page scope/focus: ${pageDescriptor.scopeLabel}
 - Constructor receives a Playwright Page instance.
 - Expose a goto() method that navigates to: ${url || '/'}
-- Expose typed getter properties for each interactive element found on the page.
+- Expose a small set of typed getter properties for key interactive elements in this page scope only.
   Each getter must return the Playwright Locator (e.g. get submitButton() { return this.page.getByRole('button', { name: 'Submit' }); })
-- Expose action methods for common user flows inferred from the requirement (e.g. fillLoginForm, clickSubmit, getErrorMessage).
+- Keep the page object small: maximum 6 getters and maximum 3 action methods.
+- Expose action methods for only the essential user flows in this page scope.
 - Action methods must be async and use the getter locators — never raw page queries inside action methods.
+- Do not create duplicate getters or duplicate action methods for existing behavior.
 - Do NOT include any test() or describe() blocks.
 - Do NOT import from '@playwright/test'. Import Page and Locator from 'playwright'.
 
@@ -263,6 +395,51 @@ ${pageContext.accessibilityTree}
     prompt,
   });
   return { code, className };
+}
+
+async function mergePageObject({ existingCode, pageContext, context, url, className, generatorAgent }) {
+  const summary = summarizeExistingPageObject(existingCode);
+  const locatorHints = pageContext.locatorSuggestions.length > 0
+    ? `\nDetected locators from the live page — add missing getters/actions for these when useful:\n${pageContext.locatorSuggestions.map(l => `  ${l}`).join('\n')}`
+    : '';
+
+  const prompt = `
+You are updating an existing Playwright Page Object class in TypeScript.
+Output TypeScript code ONLY — no markdown, no explanations, no code fences.
+
+Agent identity:
+- You are the ${generatorAgent} agent.
+
+Goals:
+- Reuse the existing class and preserve existing methods.
+- Add only missing elements/actions needed for this requirement.
+- Avoid duplicates: do not add getters or action methods that already exist or are equivalent.
+- Keep class name exactly: ${className}
+- Ensure class is exported as: export class ${className}
+- Keep goto() and make sure it targets: ${url || '/'}
+- Keep page object compact: do not exceed 8 getters total and 4 action methods total.
+- Keep imports limited to Page and Locator from 'playwright'.
+- Return a single valid compilable class with no duplicate class declarations.
+
+Existing class summary:
+- Current getters (${summary.getterCount}): ${summary.getters.join(', ') || 'none'}
+- Current action methods (${summary.methodCount}): ${summary.methods.join(', ') || 'none'}
+
+BRD_ID: ${context.brdId}
+Requirement: ${context.requirement}
+${locatorHints}
+
+Accessibility Tree (for additional context):
+${pageContext.accessibilityTree}
+
+Existing Page Object Code:
+${existingCode}
+`.trim();
+
+  return generateText({
+    task: 'convert',
+    prompt,
+  });
 }
 
 async function convertMarkdownToTest({ markdown, pageContext, context, pageObjectClassName, pageObjectRelativePath, generatorAgent }) {
@@ -381,21 +558,60 @@ async function main() {
     console.log(`Found ${pageContext.locatorSuggestions.length} locator suggestions.`);
   }
 
-  // Step 1 — generate Page Object
-  console.log('Generating Page Object...');
-  const { code: rawPoCode, className: pageObjectClassName } = await generatePageObject({
-    pageContext,
-    context,
-    url: metadata.url || '',
-    generatorAgent,
-  });
-  const poCode = stripCodeFences(rawPoCode);
-
+  const pageDescriptor = buildPageDescriptor({ metadata, markdown, context });
   const pagesDir = path.resolve('tests', 'pages');
   fs.mkdirSync(pagesDir, { recursive: true });
-  const poFile = path.join(pagesDir, `${pageObjectClassName}.ts`);
+
+  let mapping = {};
+  try {
+    mapping = loadSpecMapping();
+  } catch (error) {
+    mapping = {};
+  }
+
+  const mappedPageObjectPath = mapping[context.brdId] && mapping[context.brdId].generated_test
+    ? mapping[context.brdId].generated_test.page_object
+    : '';
+
+  const preferredPoFile = path.join(pagesDir, `${pageDescriptor.className}.ts`);
+  const poFile = mappedPageObjectPath && fs.existsSync(mappedPageObjectPath)
+    ? mappedPageObjectPath
+    : preferredPoFile;
+
+  const pageObjectClassName = path.basename(poFile, path.extname(poFile));
+  let poCode = '';
+
+  // Step 1 — upsert Page Object
+  if (fs.existsSync(poFile)) {
+    console.log(`Updating existing Page Object: ${poFile}`);
+    const existingPoCode = fs.readFileSync(poFile, 'utf8');
+    const mergedPoCode = await mergePageObject({
+      existingCode: existingPoCode,
+      pageContext,
+      context,
+      url: metadata.url || '',
+      className: pageObjectClassName,
+      generatorAgent,
+    });
+    poCode = stripCodeFences(mergedPoCode);
+  } else {
+    console.log(`Creating scoped Page Object (${pageDescriptor.scopeLabel}): ${poFile}`);
+    const { code: rawPoCode } = await generatePageObject({
+      pageContext,
+      context,
+      pageDescriptor,
+      url: metadata.url || '',
+      generatorAgent,
+    });
+    poCode = stripCodeFences(rawPoCode);
+  }
+
+  if (!poCode.includes(`class ${pageObjectClassName}`)) {
+    throw new Error(`Generated page object does not define expected class ${pageObjectClassName}.`);
+  }
+
   fs.writeFileSync(poFile, poCode, 'utf8');
-  console.log(`Generated Page Object: ${poFile}`);
+  console.log(`Page Object ready: ${poFile}`);
 
   // Relative import path from tests/generated/ to tests/pages/
   const pageObjectRelativePath = `../pages/${pageObjectClassName}`;
@@ -412,7 +628,23 @@ async function main() {
   });
 
   tsCode = stripCodeFences(tsCode);
-  tsCode = ensureHealerAndTraceability(tsCode, context);
+  try {
+    tsCode = ensureHealerAndTraceability(tsCode, context);
+  } catch (error) {
+    console.warn(`Initial compliance check failed: ${error.message}`);
+    console.log('Repairing generated test for healer/traceability compliance...');
+
+    const repaired = await repairGeneratedTestCompliance({
+      tsCode,
+      context,
+      pageObjectClassName,
+      pageObjectRelativePath,
+      generatorAgent,
+    });
+
+    tsCode = stripCodeFences(repaired);
+    tsCode = ensureHealerAndTraceability(tsCode, context);
+  }
 
   const outputDir = path.resolve('tests', 'generated');
   const outputFile = path.join(outputDir, `${context.testCaseId}.spec.ts`);
