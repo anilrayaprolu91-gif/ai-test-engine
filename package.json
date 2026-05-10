@@ -14,6 +14,7 @@
     "plan:create": "node scripts/create-test-plan.js",
     "heal:batch": "node scripts/batch-heal.js",
     "test:generated": "node scripts/run-generated-tests.js --reporter=line",
+    "test:generated:feedback": "node scripts/run-generated-tests-feedback-loop.js --max-rounds=3 --reporter=line,json",
     "test": "playwright test",
     "test:report": "playwright show-report",
     "test:smoke": "playwright test tests/dashboard.smoke.spec.ts --project=smoke-chromium --reporter=line",
