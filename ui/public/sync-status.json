@@ -1,5 +1,32 @@
 {
-  "buildId": "local-1778391455846",
-  "updatedAt": "2026-05-10T05:37:35.846Z",
-  "results": []
+  "buildId": "46bca084ba14cacd89fb29c93c4af19c54223664",
+  "updatedAt": "2026-05-10T10:23:44.016Z",
+  "results": [
+    {
+      "brdId": "BRD-21",
+      "requirement": "User can search products by keyword.",
+      "testCaseId": "TC-101",
+      "testCases": [
+        {
+          "id": "TC-101",
+          "description": "Search input accepts keyword text."
+        },
+        {
+          "id": "TC-102",
+          "description": "Result list updates after search."
+        },
+        {
+          "id": "TC-103",
+          "description": "Matching products are displayed."
+        },
+        {
+          "id": "TC-104",
+          "description": "Clearing the search restores broader results."
+        }
+      ],
+      "status": "failing",
+      "hasTestPlan": true,
+      "hasGeneratedTest": true
+    }
+  ]
 }
