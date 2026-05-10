@@ -56,7 +56,8 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git add tests/generated/ tests/pages/ output/spec-mapping.json 2>/dev/null || true
+          # Force-add generated artifacts because some paths are intentionally gitignored for local workflows.
+          git add -f tests/generated/ tests/pages/ output/spec-mapping.json 2>/dev/null || true
           for dir in plan test-plans spec specs; do
             [ -d "$dir" ] && git add "$dir/"*.md 2>/dev/null || true
           done
