@@ -101,3 +101,34 @@ export interface WorkflowInfo {
   state: string;
   hasDispatch: boolean;
 }
+
+// ── Run-tab execution types ───────────────────────────────────────────────────
+
+/** A single test-case entry shown in the Run tab test list */
+export interface RunTestEntry {
+  brdId: string;
+  requirement: string;
+  testCaseId: string;
+  specFile: string; // e.g. tests/generated/TC-101.spec.ts
+  status: SyncStatusState;
+}
+
+/** One test result row inside an execution */
+export interface ExecutionTestResult {
+  brdId: string;
+  requirement: string;
+  testCaseId: string;
+  specFile: string;
+  result: 'passed' | 'failed' | 'pending';
+  pipelineUrl: string | null;
+  pipelineStatus: PipelineRunConclusion;
+}
+
+/** A single execution record created when the user clicks Run */
+export interface TestExecution {
+  id: string; // timestamp-based unique id
+  createdAt: string;
+  label: string; // human summary e.g. "BRD-01, TC-102 · 3 tests"
+  tests: ExecutionTestResult[];
+  overallStatus: 'running' | 'passed' | 'failed' | 'mixed';
+}

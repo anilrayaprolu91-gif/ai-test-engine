@@ -8,11 +8,12 @@ import { FailingBRDTable } from './components/FailingBRDTable';
 import { FiltersToolbar } from './components/FiltersToolbar';
 import { GenerateTestSpec } from './components/GenerateTestSpec';
 import { PipelineStatusView } from './components/PipelineStatusView';
+import { RunTab } from './components/RunTab';
 import { StatusCard } from './components/StatusCard';
 import { usePipelineStatus } from './hooks/usePipelineStatus';
 import { useSyncStatus } from './hooks/useSyncStatus';
 import { useTheme } from './hooks/useTheme';
-import type { BRDSortKey, SortDirection, TestSpecFormValues } from './types/dashboard';
+import type { BRDSortKey, ExecutionTestResult, RunTestEntry, SortDirection, TestExecution, TestSpecFormValues } from './types/dashboard';
 
 type PendingGitHubFile = {
   path: string;
@@ -70,7 +71,9 @@ if (specDeliveryMode === 'github') {
 
 export default function App() {
   const [envWarningDismissed, setEnvWarningDismissed] = useState(false);
-  const [activeTab, setActiveTab] = useState<'requirements' | 'pipeline' | 'generate'>('requirements');
+  const [activeTab, setActiveTab] = useState<'requirements' | 'run' | 'pipeline' | 'generate'>('requirements');
+  const [executions, setExecutions] = useState<TestExecution[]>([]);
+  const [running, setRunning] = useState(false);
   const savedPreferences = loadDashboardPreferences();
   const [formValues, setFormValues] = useState<TestSpecFormValues>({
     brdId: '',
@@ -94,7 +97,50 @@ export default function App() {
   const [currentPage, setCurrentPage] = useState(1);
   const { theme, toggleTheme } = useTheme();
   const { data, error, loading, refreshing, summary, refresh, lastRefreshAttemptedAt, lastSuccessfulRefreshAt, brdsMissingTests } = useSyncStatus();
-  const pipeline = usePipelineStatus(githubToken, githubOwner, githubRepo, activeTab === 'pipeline');
+  const pipeline = usePipelineStatus(githubToken, githubOwner, githubRepo, activeTab === 'pipeline' || activeTab === 'run');
+
+  const handleRunTests = (entries: RunTestEntry[]) => {
+    setRunning(true);
+    const id = String(Date.now());
+    const label = entries.map(e => e.brdId).join(', ') + ` · ${entries.length} test${entries.length > 1 ? 's' : ''}`;
+    const tests: ExecutionTestResult[] = entries.map(e => ({
+      brdId: e.brdId,
+      requirement: e.requirement,
+      testCaseId: e.testCaseId,
+      specFile: e.specFile,
+      result: 'pending',
+      pipelineUrl: null,
+      pipelineStatus: null,
+    }));
+    const execution: TestExecution = {
+      id,
+      createdAt: new Date().toISOString(),
+      label,
+      tests,
+      overallStatus: 'running',
+    };
+    setExecutions(prev => [execution, ...prev]);
+    // Simulate async result resolution (replace with real CI polling as needed)
+    setTimeout(() => {
+      setExecutions(prev =>
+        prev.map(ex =>
+          ex.id !== id
+            ? ex
+            : {
+                ...ex,
+                overallStatus: 'mixed',
+                tests: ex.tests.map((t, i) => ({
+                  ...t,
+                  result: i % 2 === 0 ? 'passed' : 'failed',
+                  pipelineUrl: pipeline.runs[0]?.htmlUrl ?? null,
+                  pipelineStatus: pipeline.runs[0]?.conclusion ?? null,
+                })),
+              },
+        ),
+      );
+      setRunning(false);
+    }, 3000);
+  };
 
   const updateField = (field: keyof TestSpecFormValues, value: string) => {
     setFormValues(current => ({ ...current, [field]: value }));
@@ -481,6 +527,7 @@ export default function App() {
         <div className="flex gap-1 rounded-2xl border border-slate-200/70 bg-white/70 p-1 backdrop-blur dark:border-slate-700/70 dark:bg-slate-900/50 w-fit">
           {([
             { id: 'requirements', label: 'Requirements' },
+            { id: 'run', label: 'Run' },
             { id: 'pipeline', label: 'Pipeline' },
             { id: 'generate', label: 'Generate' },
           ] as const).map(tab => (
@@ -561,6 +608,17 @@ export default function App() {
               </>
             )}
           </>
+        )}
+
+        {/* ── Run tab ─────────────────────────────────────────── */}
+        {activeTab === 'run' && (
+          <RunTab
+            rows={data?.results ?? []}
+            pipelineRuns={pipeline.runs}
+            executions={executions}
+            onRun={handleRunTests}
+            running={running}
+          />
         )}
 
         {/* ── Pipeline tab ────────────────────────────────────── */}
