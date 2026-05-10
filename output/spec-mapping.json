@@ -1,0 +1,18 @@
+{
+  "BRD-APP-PCA-01": {
+    "requirement": "User can update quantity and remove items in cart.",
+    "test_case_id": "TC-101",
+    "last_updated": "2026-05-10",
+    "test_plan": {
+      "file": "/home/runner/work/ai-test-engine/ai-test-engine/plan/1778390669673-brd-app-pca-01-plan.md",
+      "title": "Test Plan: BRD-APP-PCA-01 - User can update quantity and remove items in cart.",
+      "linked_at": "2026-05-10T05:24:29.673Z"
+    },
+    "generated_test": {
+      "file": "/home/runner/work/ai-test-engine/ai-test-engine/tests/generated/TC-101.spec.ts",
+      "title": "TC-101 - User can update quantity and remove items in cart.",
+      "page_object": "/home/runner/work/ai-test-engine/ai-test-engine/tests/pages/BrdAppPca01Page.ts",
+      "linked_at": "2026-05-10T05:24:34.203Z"
+    }
+  }
+}
