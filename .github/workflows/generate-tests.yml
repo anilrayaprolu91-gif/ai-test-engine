@@ -94,5 +94,8 @@ jobs:
           git commit -m "chore(generation): update generated plan/spec/test artifacts [skip ci]"
           git push --force-with-lease origin "${TARGET_BRANCH}"
 
-          echo "Open PR: https://github.com/${GITHUB_REPOSITORY}/compare/main...${TARGET_BRANCH}?expand=1" >> "$GITHUB_STEP_SUMMARY"
+          echo "## Generated artifacts branch pushed" >> "$GITHUB_STEP_SUMMARY"
+          echo "GitHub Actions cannot create pull requests in this repository because PR creation is blocked by repository policy." >> "$GITHUB_STEP_SUMMARY"
+          echo "Create the PR manually using this link:" >> "$GITHUB_STEP_SUMMARY"
+          echo "https://github.com/${GITHUB_REPOSITORY}/compare/main...${TARGET_BRANCH}?expand=1" >> "$GITHUB_STEP_SUMMARY"
           echo "Open PR: https://github.com/${GITHUB_REPOSITORY}/compare/main...${TARGET_BRANCH}?expand=1"
