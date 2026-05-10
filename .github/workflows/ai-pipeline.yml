@@ -54,6 +54,10 @@ jobs:
             echo "Skipping failure analysis: output/playwright-report.json not found."
           fi
 
+      - name: Regenerate sync status payload for UI
+        if: always()
+        run: npm run sync:status:ci
+
       - name: Run Healer if tests fail
         if: failure() && steps.playwright.outcome == 'failure'
         run: |
