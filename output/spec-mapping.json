@@ -1,0 +1,18 @@
+{
+  "BRD-21": {
+    "requirement": "User can search products by keyword.",
+    "test_case_id": "TC-101",
+    "last_updated": "2026-05-10",
+    "test_plan": {
+      "file": "/home/runner/work/ai-test-engine/ai-test-engine/plan/1778395740015-brd-21-plan.md",
+      "title": "Test Plan: BRD-21 - User can search products by keyword.",
+      "linked_at": "2026-05-10T06:49:00.015Z"
+    },
+    "generated_test": {
+      "file": "/home/runner/work/ai-test-engine/ai-test-engine/tests/generated/TC-101.spec.ts",
+      "title": "TC-101 - User can search products by keyword.",
+      "page_object": "/home/runner/work/ai-test-engine/ai-test-engine/tests/pages/Brd21Page.ts",
+      "linked_at": "2026-05-10T06:49:03.036Z"
+    }
+  }
+}
