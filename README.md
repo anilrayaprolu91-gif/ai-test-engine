@@ -200,6 +200,7 @@ A: In `required.env` (NEVER commit this to Git).
 - See `ARCHITECTURE.md` for detailed documentation
 - Check the examples in `tests/generated/`
 - Read comments in each script file
+- Dashboard UI maintained by [Anil Rayaprolu](https://www.linkedin.com/in/anil-rayaprolu-37a77ab9)
 
 ---
 

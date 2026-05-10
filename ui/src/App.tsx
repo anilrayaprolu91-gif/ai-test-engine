@@ -51,6 +51,8 @@ const githubToken = String(import.meta.env.VITE_GITHUB_TOKEN || '').trim();
 const githubOwner = String(import.meta.env.VITE_GITHUB_OWNER || 'anilrayaprolu91-gif').trim();
 const githubRepo = String(import.meta.env.VITE_GITHUB_REPO || 'ai-test-engine').trim();
 const specDeliveryMode = String(import.meta.env.VITE_SPEC_DELIVERY_MODE || 'github').toLowerCase() === 'local' ? 'local' : 'github';
+const maintainerName = 'Anil Rayaprolu';
+const maintainerUrl = 'https://www.linkedin.com/in/anil-rayaprolu-37a77ab9';
 
 const PLACEHOLDER_TOKEN = 'your_github_token_here';
 const missingEnvWarnings: string[] = [];
@@ -436,6 +438,8 @@ export default function App() {
         <DashboardHeader
           buildId={data?.buildId}
           updatedAt={data?.updatedAt}
+          maintainerName={maintainerName}
+          maintainerUrl={maintainerUrl}
           refreshing={refreshing}
           lastRefreshAttemptedAt={lastRefreshAttemptedAt}
           lastSuccessfulRefreshAt={lastSuccessfulRefreshAt}

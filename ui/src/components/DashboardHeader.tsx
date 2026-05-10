@@ -4,6 +4,8 @@ import { formatRelativeTimestamp } from '../lib/utils';
 interface DashboardHeaderProps {
   buildId?: string;
   updatedAt?: string;
+  maintainerName: string;
+  maintainerUrl: string;
   refreshing: boolean;
   lastRefreshAttemptedAt?: string;
   lastSuccessfulRefreshAt?: string;
@@ -17,6 +19,8 @@ interface DashboardHeaderProps {
 export function DashboardHeader({
   buildId,
   updatedAt,
+  maintainerName,
+  maintainerUrl,
   refreshing,
   lastRefreshAttemptedAt,
   lastSuccessfulRefreshAt,
@@ -37,6 +41,17 @@ export function DashboardHeader({
           </h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300 md:text-base">
             Business requirement visibility for every build, with fast signals on what is broken and what is safe to ship.
+          </p>
+          <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">
+            Maintained by{' '}
+            <a
+              href={maintainerUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="font-semibold text-sky-700 underline decoration-sky-300 underline-offset-4 transition hover:text-sky-600 dark:text-sky-300 dark:decoration-sky-500/60 dark:hover:text-sky-200"
+            >
+              {maintainerName}
+            </a>
           </p>
         </div>
 
