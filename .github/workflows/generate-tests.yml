@@ -74,20 +74,36 @@ jobs:
 
       - name: Create a single PR for generated artifacts
         if: ${{ github.event_name != 'pull_request' }}
-        uses: peter-evans/create-pull-request@v7
-        with:
-          token: ${{ github.token }}
-          commit-message: "chore(generation): update generated plan/spec/test artifacts [skip ci]"
-          title: "chore(generation): update generated plan/spec/test artifacts"
-          body: |
-            This PR contains generated artifacts from spec processing.
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_BRANCH: chore/generated-spec-artifacts
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B "${TARGET_BRANCH}"
 
-            - Plans and tests were produced by scripts/generate-from-specs.js
-            - Workflow contains orchestration only; generation logic lives in JS scripts
-          branch: chore/generated-spec-artifacts
-          delete-branch: false
-          add-paths: |
-            tests/generated/
-            tests/pages/
-            output/spec-mapping.json
-            ui/public/sync-status.json
+          git add -f tests/generated/ tests/pages/ output/spec-mapping.json ui/public/sync-status.json 2>/dev/null || true
+          for dir in plan test-plans spec specs; do
+            [ -d "$dir" ] && git add "$dir/"*.md 2>/dev/null || true
+          done
+
+          if git diff --cached --quiet; then
+            echo "No generated file changes to commit."
+            exit 0
+          fi
+
+          git commit -m "chore(generation): update generated plan/spec/test artifacts [skip ci]"
+          git push --force-with-lease origin "${TARGET_BRANCH}"
+
+          cat <<'EOF' > /tmp/generated-pr-body.md
+          This PR contains generated artifacts from spec processing.
+
+          - Plans and tests were produced by scripts/generate-from-specs.js
+          - Workflow contains orchestration only; generation logic lives in JS scripts
+          EOF
+
+          if gh pr view "${TARGET_BRANCH}" >/dev/null 2>&1; then
+            gh pr edit "${TARGET_BRANCH}" --title "chore(generation): update generated plan/spec/test artifacts" --body-file /tmp/generated-pr-body.md
+          else
+            gh pr create --base main --head "${TARGET_BRANCH}" --title "chore(generation): update generated plan/spec/test artifacts" --body-file /tmp/generated-pr-body.md
+          fi
