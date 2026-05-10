@@ -93,7 +93,12 @@ jobs:
           fi
 
           git commit -m "chore(generation): update generated plan/spec/test artifacts [skip ci]"
-          git push --force-with-lease origin "${TARGET_BRANCH}"
+          git fetch origin "${TARGET_BRANCH}" || true
+          if ! git push --force-with-lease origin "${TARGET_BRANCH}"; then
+            echo "Retrying push after refreshing remote branch state..."
+            git fetch origin "${TARGET_BRANCH}" || true
+            git push --force-with-lease origin "${TARGET_BRANCH}"
+          fi
 
           if ! command -v gh >/dev/null 2>&1; then
             echo "::error::GitHub CLI (gh) is not available on this runner."
