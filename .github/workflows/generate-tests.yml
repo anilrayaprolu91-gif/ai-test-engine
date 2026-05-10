@@ -28,7 +28,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.WORKFLOW_PUSH_TOKEN || github.token }}
           ref: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
 
       - name: Set up Node.js
@@ -73,22 +72,27 @@ jobs:
           git commit -m "chore(generation): update generated plan/spec/test artifacts [skip ci]"
           git push origin "HEAD:${TARGET_BRANCH}"
 
-      - name: Create a single PR for generated artifacts
+      - name: Push generated artifacts branch
         if: ${{ github.event_name != 'pull_request' }}
-        uses: peter-evans/create-pull-request@v7
-        with:
-          token: ${{ secrets.WORKFLOW_PUSH_TOKEN || github.token }}
-          commit-message: "chore(generation): update generated plan/spec/test artifacts [skip ci]"
-          title: "chore(generation): update generated plan/spec/test artifacts"
-          body: |
-            This PR contains generated artifacts from spec processing.
+        env:
+          TARGET_BRANCH: chore/generated-spec-artifacts
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B "${TARGET_BRANCH}"
 
-            - Plans and tests were produced by scripts/generate-from-specs.js
-            - Workflow contains orchestration only; generation logic lives in JS scripts
-          branch: chore/generated-spec-artifacts
-          delete-branch: false
-          add-paths: |
-            tests/generated/
-            tests/pages/
-            output/spec-mapping.json
-            ui/public/sync-status.json
+          git add -f tests/generated/ tests/pages/ output/spec-mapping.json ui/public/sync-status.json 2>/dev/null || true
+          for dir in plan test-plans spec specs; do
+            [ -d "$dir" ] && git add "$dir/"*.md 2>/dev/null || true
+          done
+
+          if git diff --cached --quiet; then
+            echo "No generated file changes to push."
+            exit 0
+          fi
+
+          git commit -m "chore(generation): update generated plan/spec/test artifacts [skip ci]"
+          git push --force-with-lease origin "${TARGET_BRANCH}"
+
+          echo "Open PR: https://github.com/${GITHUB_REPOSITORY}/compare/main...${TARGET_BRANCH}?expand=1" >> "$GITHUB_STEP_SUMMARY"
+          echo "Open PR: https://github.com/${GITHUB_REPOSITORY}/compare/main...${TARGET_BRANCH}?expand=1"
