@@ -72,30 +72,22 @@ jobs:
           git commit -m "chore(generation): update generated plan/spec/test artifacts [skip ci]"
           git push origin "HEAD:${TARGET_BRANCH}"
 
-      - name: Push generated artifacts branch
+      - name: Create a single PR for generated artifacts
         if: ${{ github.event_name != 'pull_request' }}
-        env:
-          TARGET_BRANCH: chore/generated-spec-artifacts
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git checkout -B "${TARGET_BRANCH}"
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ github.token }}
+          commit-message: "chore(generation): update generated plan/spec/test artifacts [skip ci]"
+          title: "chore(generation): update generated plan/spec/test artifacts"
+          body: |
+            This PR contains generated artifacts from spec processing.
 
-          git add -f tests/generated/ tests/pages/ output/spec-mapping.json ui/public/sync-status.json 2>/dev/null || true
-          for dir in plan test-plans spec specs; do
-            [ -d "$dir" ] && git add "$dir/"*.md 2>/dev/null || true
-          done
-
-          if git diff --cached --quiet; then
-            echo "No generated file changes to push."
-            exit 0
-          fi
-
-          git commit -m "chore(generation): update generated plan/spec/test artifacts [skip ci]"
-          git push --force-with-lease origin "${TARGET_BRANCH}"
-
-          echo "## Generated artifacts branch pushed" >> "$GITHUB_STEP_SUMMARY"
-          echo "GitHub Actions cannot create pull requests in this repository because PR creation is blocked by repository policy." >> "$GITHUB_STEP_SUMMARY"
-          echo "Create the PR manually using this link:" >> "$GITHUB_STEP_SUMMARY"
-          echo "https://github.com/${GITHUB_REPOSITORY}/compare/main...${TARGET_BRANCH}?expand=1" >> "$GITHUB_STEP_SUMMARY"
-          echo "Open PR: https://github.com/${GITHUB_REPOSITORY}/compare/main...${TARGET_BRANCH}?expand=1"
+            - Plans and tests were produced by scripts/generate-from-specs.js
+            - Workflow contains orchestration only; generation logic lives in JS scripts
+          branch: chore/generated-spec-artifacts
+          delete-branch: false
+          add-paths: |
+            tests/generated/
+            tests/pages/
+            output/spec-mapping.json
+            ui/public/sync-status.json
