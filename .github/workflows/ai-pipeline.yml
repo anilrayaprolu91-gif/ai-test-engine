@@ -66,6 +66,11 @@ jobs:
           git commit -m "fix: auto-healed selectors via AI provider"
           git push --force-with-lease origin "${TARGET_BRANCH}"
 
+          if ! command -v gh >/dev/null 2>&1; then
+            echo "::error::GitHub CLI (gh) is not available on this runner."
+            exit 1
+          fi
+
           cat <<'EOF' > /tmp/healed-pr-body.md
           This PR contains AI-healed test updates generated after a failing Playwright run.
 

@@ -95,6 +95,11 @@ jobs:
           git commit -m "chore(generation): update generated plan/spec/test artifacts [skip ci]"
           git push --force-with-lease origin "${TARGET_BRANCH}"
 
+          if ! command -v gh >/dev/null 2>&1; then
+            echo "::error::GitHub CLI (gh) is not available on this runner."
+            exit 1
+          fi
+
           cat <<'EOF' > /tmp/generated-pr-body.md
           This PR contains generated artifacts from spec processing.
 
